@@ -20,6 +20,7 @@ bindkey -e
 alias ll='ls -alF'
 alias la='ls -A'
 alias gcam='git commit -am '
+alias dc='docker compose'
 
 # Keep 1000 lines of history within the shell and save it to ~/.zsh_history:
 HISTSIZE=100000
