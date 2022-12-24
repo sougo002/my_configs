@@ -40,3 +40,4 @@ source ~/repos/powerlevel10k/powerlevel10k.zsh-theme
 export VOLTA_HOME="$HOME/.volta"
 export PATH="$VOLTA_HOME/bin:$PATH"
 
+[[ ! -f ~/.rbenv/bin/rbenv ]] || eval "$(~/.rbenv/bin/rbenv init - zsh)"
