@@ -20,7 +20,3 @@ fi
 if [ -f ~/.zshenv ] && [ `grep ". ~/.my_zshenv" ~/.zshenv | wc -l` == "0" ]; then
   echo ". ~/.my_zshenv" >> ~/.zshenv
 fi
-
-if [ -f ~/.bashrc ] && [ `grep ". ~/.my_bashrc" ~/.bashrc | wc -l` == "0" ]; then
-  echo ". ~/.my_bashrc" >> ~/.bashrc
-fi
