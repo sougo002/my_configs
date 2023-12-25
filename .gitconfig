@@ -16,3 +16,5 @@
 	editor = code --wait
 [sequence]
 	editor = code --wait
+[ghq]
+	root = ~/.ghq
