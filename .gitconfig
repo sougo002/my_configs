@@ -8,6 +8,7 @@
 	ss = status
 	br = branch
 	fpush = push --force-with-lease --force-if-includes
+	lo = log --oneline
 [push]
 	autoSetupRemote = true
 [rebase]
