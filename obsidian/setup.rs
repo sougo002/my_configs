@@ -1,6 +1,5 @@
 use std::env;
 use std::fs;
-use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 
 fn create_parent_dirs(path: &Path) -> std::io::Result<()> {
@@ -31,13 +30,10 @@ fn process_directory(current_dir: &Path, target_dir: &Path) -> std::io::Result<(
                     continue;
                 }
 
-                // シンボリックリンクを作成
-                match symlink(&path, &target_path) {
-                    Ok(_) => println!(
-                        "シンボリックリンクを作成しました: {:?} -> {:?}",
-                        target_path, path
-                    ),
-                    Err(e) => eprintln!("エラー: {:?} のシンボリックリンク作成に失敗: {}", path, e),
+                // コピーを作成
+                match fs::copy(&path, &target_path) {
+                    Ok(_) => println!("コピーを作成しました: {:?} -> {:?}", target_path, path),
+                    Err(e) => eprintln!("エラー: {:?} コピーを作成に失敗: {}", path, e),
                 }
             }
         }
