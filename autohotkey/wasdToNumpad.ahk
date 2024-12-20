@@ -1,3 +1,5 @@
+#Requires AutoHotkey v2.0
+
 ; wasdを数字に
 F13 & z:: Send("{0}")
 F13 & a:: Send("{1}")

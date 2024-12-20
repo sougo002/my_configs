@@ -1,3 +1,5 @@
+#Requires AutoHotkey v2.0
+
 ; ijklをArrowに
 F13 & i:: Send("{Blind}{Up}")
 F13 & j:: Send("{Blind}{Left}")

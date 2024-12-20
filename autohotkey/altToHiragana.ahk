@@ -1,3 +1,5 @@
+#Requires AutoHotkey v2.0
+
 SinglePress(lastKey, sendKey) {
     Send("{Blind}{" lastKey " down}")
     KeyWait(lastKey)
