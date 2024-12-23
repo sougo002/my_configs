@@ -1,0 +1,5 @@
+[workspace]
+members = ["autohotkey", "obsidian"]
+
+[workspace.package]
+version = "0.1.0"

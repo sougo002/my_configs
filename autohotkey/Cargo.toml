@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "autohotkey"
+version = "0.1.0"
+
+[[bin]]
+name = "autohotkey"
+path = "./setup.rs"
+
+[dependencies]
+dirs = "5.0.1"
