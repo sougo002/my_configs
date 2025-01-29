@@ -1,6 +1,8 @@
 [user]
 	name = sougo
 	email = "put your email here"
+[init]
+	defaultBranch = main
 [alias]
 	co = checkout
 	cob = checkout -b
