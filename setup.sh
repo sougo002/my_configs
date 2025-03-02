@@ -16,3 +16,8 @@ brew bundle --global
 if type mise > /dev/null 2>&1; then
   mise install
 fi
+
+# Install deno
+if type deno > /dev/null 2>&1; then
+  curl -fsSL https://deno.land/install.sh | sh
+fi
