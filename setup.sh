@@ -1,5 +1,19 @@
 #!/bin/bash
 
+# git prompt
+if [ ! -d ~/.zsh ]; then
+  mkdir ~/.zsh
+fi
+if [ ! -f ~/.zsh/git-prompt.sh ]; then
+  curl -o ~/.zsh/git-prompt.sh https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh
+fi
+if [ ! -f ~/.zsh/git-completion.bash ]; then
+  curl -o ~/.zsh/git-completion.bash https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash
+fi
+if [ ! -f ~/.zsh/_git ]; then
+  curl -o ~/.zsh/_git https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.zsh
+fi
+
 # Install tools managed by homebrew
 {{ if eq .chezmoi.os "darwin" }}
 if ! type xcode-select > /dev/null 2>&1; then
