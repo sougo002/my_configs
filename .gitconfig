@@ -11,7 +11,8 @@
 	br = branch
 	fpush = push --force-with-lease --force-if-includes
 	lo = log --oneline
-  remove = reset HEAD~
+	rh = reset --hard
+	remove = reset HEAD~
 [push]
 	autoSetupRemote = true
 [rebase]
