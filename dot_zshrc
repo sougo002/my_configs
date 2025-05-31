@@ -2,6 +2,7 @@
 
 # require eza, docker, mise, rustup
 # aliasses
+alias resource=". ~/.zshrc"
 ## ls
 alias ls='eza --icons'
 alias ll='eza --icons -lah'
@@ -13,18 +14,16 @@ alias up="docker compose up -d && docker compose logs -f"
 alias down="docker compose down"
 alias logs="docker compose logs"
 
-alias resource=". ~/.zshrc"
 
 # PATH
 export PATH="/opt/homebrew/opt/rustup/bin:$PATH"
 eval "$(~/.local/bin/mise activate zsh)"
 
-# git
-source ~/.zsh/git-prompt.sh
-
-fpath=(~/.zsh $fpath)
-zstyle ':completion:*:*:git:*' script ~/.zsh/git-completion.bash
 autoload -Uz compinit && compinit
+# git
+fpath=(~/.zsh $fpath)
+source ~/.zsh/git-prompt.sh
+zstyle ':completion:*:*:git:*' script ~/.zsh/git-completion.bash
 
 GIT_PS1_SHOWDIRTYSTATE=true
 GIT_PS1_SHOWUNTRACKEDFILES=true
