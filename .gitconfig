@@ -13,6 +13,8 @@
 	lo = log --oneline
 	rh = reset --hard
 	remove = reset HEAD~
+	amend = commit --amend
+	amendne = commit --amend --no-edit
 [push]
 	autoSetupRemote = true
 [rebase]
