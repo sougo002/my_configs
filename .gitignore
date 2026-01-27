@@ -1,2 +1,21 @@
 setup
 target/
+
+# Secrets and tokens
+.tokens
+*.key
+*.pem
+*.p12
+.env
+.env.*
+!.env.example
+
+# Local overrides
+*.local
+
+# macOS
+.DS_Store
+
+# Backup
+*.backup
+.dotfiles_backup/
