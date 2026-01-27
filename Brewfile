@@ -14,7 +14,6 @@ brew "readline"
 # cask
 cask "warp"
 cask "visual-studio-code"
-cask "docker"
-cask "docker-compose"
+cask "docker-desktop"
 cask "linearmouse"
 cask "google-chrome"
