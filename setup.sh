@@ -5,6 +5,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DOTFILES_DIR="$SCRIPT_DIR/dotfiles"
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 
 # ==============================================================================
 # Helper Functions
@@ -55,12 +56,21 @@ link_file() {
 setup_dotfiles() {
   info "Setting up dotfiles symlinks..."
 
-  # Link all dotfiles
   for file in "$DOTFILES_DIR"/.*; do
     filename=$(basename "$file")
-    # Skip . and ..
     [[ "$filename" == "." || "$filename" == ".." ]] && continue
-    link_file "$file" "$HOME/$filename"
+
+    if [[ "$filename" == ".config" ]]; then
+      # .config配下はサブディレクトリ単位でXDG_CONFIG_HOMEにリンク
+      mkdir -p "$CONFIG_HOME"
+      for subdir in "$file"/*/; do
+        [[ -d "$subdir" ]] || continue
+        link_file "$subdir" "$CONFIG_HOME/$(basename "$subdir")"
+      done
+    else
+      # その他のdotfilesはHOMEに直接リンク
+      link_file "$file" "$HOME/$filename"
+    fi
   done
 }
 
@@ -126,6 +136,7 @@ setup_macos() {
 
 # ==============================================================================
 # Claude Code Skills Setup
+# git管理外のスキルを残すため、dotfilesとは別でスキル単位でリンク
 # ==============================================================================
 
 setup_claude_skills() {
@@ -158,12 +169,6 @@ setup_tools() {
   if command -v mise &>/dev/null; then
     info "Installing mise dependencies..."
     mise install
-  fi
-
-  # deno
-  if ! command -v deno &>/dev/null; then
-    info "Installing Deno..."
-    curl -fsSL https://deno.land/install.sh | sh
   fi
 }
 
