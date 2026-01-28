@@ -33,6 +33,18 @@ alias logs="docker compose logs"
 # misc
 alias beep="afplay /System/Library/Sounds/Ping.aiff"
 
+# jidで絞り込んでクリップボードにコピーする関数
+jidcp() {
+  if [ -p /dev/stdin ]; then
+    # パイプで受け取った場合 (例: cat log.json | jidcp)
+    cat - | jid | pbcopy
+  else
+    # 引数でファイル名を渡した場合 (例: jidcp history.json)
+    cat "$1" | jid | pbcopy
+  fi
+  echo "Copied to clipboard!"
+}
+
 # ==============================================================================
 # PATH & Tools (interactive shell)
 # ==============================================================================
