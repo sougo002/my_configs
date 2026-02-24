@@ -16,6 +16,10 @@ target/
 # macOS
 .DS_Store
 
+# Karabiner auto-generated
+dotfiles/.config/karabiner/automatic_backups/
+dotfiles/.config/karabiner/assets/
+
 # Backup
 *.backup
 .dotfiles_backup/
