@@ -32,6 +32,7 @@ alias logs="docker compose logs"
 
 # misc
 alias beep="afplay /System/Library/Sounds/Ping.aiff"
+alias ccode="claude"
 
 # jidで絞り込んでクリップボードにコピーする関数
 jidcp() {
