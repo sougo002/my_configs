@@ -14,16 +14,17 @@ allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr 
 
 PR URL 以外（PR番号、ブランチ名等）を指定した場合は、手動でコメントを取得する。
 
-## レビューコメント（自動取得）
-
-!`python3 ${CLAUDE_SKILL_DIR}/scripts/fetch_comments.py $ARGUMENTS`
-
 ## ワークフロー
 
-### Step 1: コメントの確認
+### Step 1: コメントの取得
 
-上記で自動取得されたレビューコメントを確認する。
-自動取得できなかった場合（URL 以外の入力）は、以下で手動取得する:
+PR URL が引数として渡された場合は、スクリプトでコメントを取得する:
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/scripts/fetch_comments.py $ARGUMENTS
+```
+
+PR URL 以外の入力、またはスクリプト実行に失敗した場合は、以下で手動取得する:
 
 ```bash
 gh pr view <pr_num> --comments
