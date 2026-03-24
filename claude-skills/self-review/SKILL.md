@@ -30,18 +30,25 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 ```bash
 git fetch origin <base>
+
+# コミット済み差分
 git diff --name-status <base>...HEAD
 git diff <base>...HEAD
+
+# ローカルの未コミット変更（ステージング済み + 未ステージング）
+git diff HEAD
 ```
 
-差分がない場合はエラーで中止する。
+コミット済み差分もローカル変更もない場合はエラーで中止する。
 
 ### Step 2: スコープガード
 
 変更対象ファイル一覧を取得し、以降のすべての修正をこの範囲内に制限する。
 
 ```bash
+# コミット済み + ローカル変更の両方を含むファイル一覧
 git diff --name-only <base>...HEAD
+git diff --name-only HEAD
 ```
 
 ### Step 3: レビュー実行
