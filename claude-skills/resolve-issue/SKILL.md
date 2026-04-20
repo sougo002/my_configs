@@ -1,7 +1,7 @@
 ---
 name: resolve-issue
 description: GitHub Issueを解決し、コミット・PR作成まで一貫して行います。Issue番号を指定して使用。
-allowed-tools: Read, Grep, Glob, Bash, Task, Edit, Write, AskUserQuestion
+allowed-tools: Read, Grep, Glob, Bash, Task, Edit, Write, AskUserQuestion, EnterWorktree, ExitWorktree
 ---
 
 # Issue解決スキル
@@ -37,20 +37,31 @@ Issueの内容を分析し、以下を把握する：
 - 実装アプローチ
 - 考慮すべき点
 
-### Step 3: ブランチ作成
+### Step 3: Worktree作成
 
-実装計画の承認後、コード変更の前に作業用ブランチを作成する:
+実装計画の承認後、コード変更の前にworktreeで隔離された作業環境を作成する:
 
-1. 現在のブランチがmain/developmentであることを確認（そうでなければユーザーに確認）
-2. 最新のリモートを取得してブランチを作成
+1. 最新のリモートを取得
 
 ```bash
 git fetch origin
-git checkout -b <ブランチ名> origin/development
 ```
 
-ブランチ名の形式: `<type>/<簡潔な説明>`（例: `fix/auth-token-expiry`, `feat/add-search-filter`）
+2. EnterWorktreeでworktreeを作成
+
+worktree名の形式: `<type>/<簡潔な説明>`（例: `fix/auth-token-expiry`, `feat/add-search-filter`）
 - Issueのタイトルやラベルから適切なtype（fix, feat, refactor, chore等）と説明を決定する
+
+```
+EnterWorktree(name="<worktree名>")
+```
+
+3. worktree内でブランチをdevelopmentベースにリセット（**必ずEnterWorktree後に実行すること**）
+
+```bash
+# worktree内であることを確認してからリセット（.gitがファイルならworktree内）
+test -f .git && git reset --hard origin/development || echo "ERROR: worktree内ではありません。中断します。"
+```
 
 ### Step 4: コード実装
 
@@ -158,6 +169,16 @@ gh pr create --title "<PRタイトル>" --body "<テンプレートに沿った�
 - <変更点1>
 - <変更点2>
 ```
+
+### Step 7: Worktreeから退出
+
+PR作成後、ExitWorktreeで元のディレクトリに戻る:
+
+```
+ExitWorktree(action="keep")
+```
+
+- worktreeとブランチはディスク上に保持される（後から戻れる）
 
 ## 注意事項
 
