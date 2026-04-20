@@ -56,7 +56,6 @@ git diff --name-only HEAD
 [../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビュー（4サブエージェント）と妥当性検証を実行する。
 
 - **作業ディレクトリ**: 現在のリポジトリルート
-- **ガイドファイル**: `../review/` 配下（ARCHITECTURE.md, SECURITY.md, CHECKLIST.md）
 
 ### Step 4: 所見の提示と選択
 

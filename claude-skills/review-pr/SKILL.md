@@ -92,7 +92,6 @@ git diff <base>...HEAD                 # diff（ファイル単位で構造化�
 [../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビュー（4サブエージェント）と妥当性検証を実行する。
 
 - **作業ディレクトリ**: worktreeのパス
-- **ガイドファイル**: `../review/` 配下（ARCHITECTURE.md, SECURITY.md, CHECKLIST.md）
 
 ### Step 4: 統合（メインエージェント）
 
