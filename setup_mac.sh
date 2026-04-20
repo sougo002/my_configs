@@ -161,6 +161,35 @@ setup_claude_skills() {
 }
 
 # ==============================================================================
+# Standalone Scripts Setup
+# scripts/<name>/<name> を ~/.local/bin/<name> にリンクしてPATHから呼べるようにする
+# ==============================================================================
+
+setup_scripts() {
+  info "Setting up standalone scripts..."
+
+  local scripts_dir="$SCRIPT_DIR/scripts"
+  local target_dir="$HOME/.local/bin"
+
+  if [[ ! -d "$scripts_dir" ]]; then
+    info "No scripts directory found"
+    return 0
+  fi
+
+  mkdir -p "$target_dir"
+
+  for tool_dir in "$scripts_dir"/*/; do
+    [[ -d "$tool_dir" ]] || continue
+    local tool_name
+    tool_name=$(basename "$tool_dir")
+    local tool_path="$tool_dir$tool_name"
+    if [[ -x "$tool_path" ]]; then
+      link_file "$tool_path" "$target_dir/$tool_name"
+    fi
+  done
+}
+
+# ==============================================================================
 # Tools Setup
 # ==============================================================================
 
@@ -185,6 +214,7 @@ main() {
   setup_git_prompt
   setup_macos
   setup_claude_skills
+  setup_scripts
   setup_tools
 
   info "Setup complete!"

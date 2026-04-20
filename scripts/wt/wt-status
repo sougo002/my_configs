@@ -1,0 +1,49 @@
+#!/bin/sh
+# Report the running docker compose stack for the repo containing $1 (default: $PWD).
+#
+# Default output (for statuslines):
+#   (empty)        — no stack running for this repo
+#   "▶"            — running in the current worktree
+#   "▶ <branch>"   — running in a different worktree of the same repo
+#
+# With --verbose, emits a human-readable multi-line summary instead.
+
+set -u
+
+SELF=$(readlink -f "$0")
+SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
+# shellcheck source=lib/wt-lib.sh
+. "$SCRIPT_DIR/lib/wt-lib.sh"
+
+cwd=${1:-$PWD}
+mode=${2:-}
+
+current_worktree=$(git -C "$cwd" --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$current_worktree" ]; then
+  [ "$mode" = "--verbose" ] && printf 'not a git repository\n'
+  exit 0
+fi
+
+hit=$(find_running_stack_for_repo "$cwd")
+if [ -z "$hit" ]; then
+  [ "$mode" = "--verbose" ] && printf 'no stack running for this repo\n'
+  exit 0
+fi
+
+hit_dir=$(printf '%s' "$hit" | awk -F'\t' '{print $1}')
+hit_branch=$(resolve_branch_of_path "$hit_dir")
+hit_label=${hit_branch:-$(basename "$hit_dir")}
+
+if [ "$hit_dir" = "$current_worktree" ]; then
+  if [ "$mode" = "--verbose" ]; then
+    printf 'running here (%s)\n' "$hit_label"
+  else
+    printf '▶'
+  fi
+else
+  if [ "$mode" = "--verbose" ]; then
+    printf 'running in %s\n  path: %s\n' "$hit_label" "$hit_dir"
+  else
+    printf '▶ %s' "$hit_label"
+  fi
+fi

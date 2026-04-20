@@ -1,0 +1,59 @@
+#!/bin/sh
+# wt — worktree-aware docker compose dispatcher.
+#
+# Problem it solves:
+#   When you use git worktrees and each worktree has its own docker-compose.yml
+#   sharing the same host ports, only one worktree's stack can run at a time.
+#   It's easy to forget which worktree is up, start another, and hit port
+#   conflicts or tear down the wrong stack.
+#
+#   `wt` keeps track of the running worktree and swaps safely.
+
+set -u
+
+SELF=$(readlink -f "$0")
+SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
+
+usage() {
+  cat >&2 <<'EOF'
+wt — worktree-aware docker compose dispatcher
+
+Usage:
+  wt up [args...]     Start docker compose in the current worktree (detached)
+                      and follow logs. If another worktree of the same repo
+                      has a stack running, prompt to stop it first.
+  wt watch [args...]  Run docker compose watch with the same conflict check.
+  wt where            Show which worktree (if any) is currently running
+                      docker compose for the repo containing $PWD.
+  wt --help           Show this help.
+EOF
+}
+
+sub=${1:-}
+[ $# -gt 0 ] && shift
+
+case "$sub" in
+  up)
+    "$SCRIPT_DIR/wt-preflight" || exit 1
+    docker compose up -d "$@" && docker compose logs -f
+    ;;
+  watch)
+    "$SCRIPT_DIR/wt-preflight" || exit 1
+    docker compose watch "$@"
+    ;;
+  where)
+    "$SCRIPT_DIR/wt-status" "$PWD" --verbose
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  "")
+    usage
+    exit 1
+    ;;
+  *)
+    printf 'wt: unknown subcommand %s\n\n' "$sub" >&2
+    usage
+    exit 1
+    ;;
+esac

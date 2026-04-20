@@ -1,0 +1,52 @@
+#!/bin/sh
+# If a docker compose stack for the current repo is running in another worktree,
+# prompt the user to stop it before starting a new one here.
+#
+# Exit codes:
+#   0 — no conflict, or user accepted to stop the other worktree's stack
+#   1 — user declined, bail out
+
+set -u
+
+SELF=$(readlink -f "$0")
+SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
+# shellcheck source=lib/wt-lib.sh
+. "$SCRIPT_DIR/lib/wt-lib.sh"
+
+cwd=$PWD
+
+current_worktree=$(git -C "$cwd" --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$current_worktree" ]; then
+  exit 0
+fi
+
+hit=$(find_running_stack_for_repo "$cwd")
+if [ -z "$hit" ]; then
+  exit 0
+fi
+
+hit_dir=$(printf '%s' "$hit" | awk -F'\t' '{print $1}')
+
+if [ "$hit_dir" = "$current_worktree" ]; then
+  exit 0
+fi
+
+hit_branch=$(resolve_branch_of_path "$hit_dir")
+hit_label=${hit_branch:-$hit_dir}
+
+printf 'docker compose is already running in another worktree:\n' >&2
+printf '  branch: %s\n' "$hit_label" >&2
+printf '  path:   %s\n' "$hit_dir" >&2
+printf 'Stop it and continue here? [y/N] ' >&2
+read -r answer </dev/tty || exit 1
+
+case "$answer" in
+  y|Y|yes|YES)
+    (cd "$hit_dir" && docker compose down) || exit 1
+    exit 0
+    ;;
+  *)
+    printf 'Aborted.\n' >&2
+    exit 1
+    ;;
+esac
