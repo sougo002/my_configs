@@ -2,11 +2,23 @@
 # If a docker compose stack for the current repo is running in another worktree,
 # prompt the user to stop it before starting a new one here.
 #
+# Options:
+#   -y, --yes   Auto-confirm stopping the other worktree's stack (non-interactive)
+#
 # Exit codes:
 #   0 — no conflict, or user accepted to stop the other worktree's stack
 #   1 — user declined, bail out
 
 set -u
+
+assume_yes=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -y|--yes) assume_yes=1; shift ;;
+    --) shift; break ;;
+    *) break ;;
+  esac
+done
 
 SELF=$(readlink -f "$0")
 SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
@@ -37,6 +49,13 @@ hit_label=${hit_branch:-$hit_dir}
 printf 'docker compose is already running in another worktree:\n' >&2
 printf '  branch: %s\n' "$hit_label" >&2
 printf '  path:   %s\n' "$hit_dir" >&2
+
+if [ "$assume_yes" -eq 1 ]; then
+  printf 'Stop it and continue here? [y/N] y (auto)\n' >&2
+  (cd "$hit_dir" && docker compose down) || exit 1
+  exit 0
+fi
+
 printf 'Stop it and continue here? [y/N] ' >&2
 read -r answer </dev/tty || exit 1
 

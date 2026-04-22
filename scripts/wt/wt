@@ -19,26 +19,56 @@ usage() {
 wt — worktree-aware docker compose dispatcher
 
 Usage:
-  wt up [args...]     Start docker compose in the current worktree (detached)
-                      and follow logs. If another worktree of the same repo
-                      has a stack running, prompt to stop it first.
-  wt watch [args...]  Run docker compose watch with the same conflict check.
-  wt where            Show which worktree (if any) is currently running
-                      docker compose for the repo containing $PWD.
-  wt --help           Show this help.
+  wt up [-y] [args...]    Start docker compose in the current worktree
+                          (detached, with --build so the image always reflects
+                          the current worktree's state), then watch for file
+                          changes and follow logs. If another worktree of the
+                          same repo has a stack running, prompt to stop it
+                          first.
+  wt watch [-y] [args...] Run docker compose watch with the same conflict check.
+  wt where                Show which worktree (if any) is currently running
+                          docker compose for the repo containing $PWD.
+  wt --help               Show this help.
+
+Options:
+  -y, --yes   Auto-confirm stopping another worktree's running stack.
 EOF
 }
 
 sub=${1:-}
 [ $# -gt 0 ] && shift
 
+# For up/watch, strip -y/--yes from positional params (preserving order & whitespace).
+# Sets $preflight_yes to "-y" when present. Inlined because a function cannot
+# modify the caller's positional parameters.
+case "$sub" in
+  up|watch)
+    preflight_yes=""
+    _orig=$#
+    _i=0
+    while [ "$_i" -lt "$_orig" ]; do
+      _arg=$1
+      shift
+      case "$_arg" in
+        -y|--yes) preflight_yes="-y" ;;
+        *) set -- "$@" "$_arg" ;;
+      esac
+      _i=$((_i + 1))
+    done
+    ;;
+esac
+
 case "$sub" in
   up)
-    "$SCRIPT_DIR/wt-preflight" || exit 1
-    docker compose up -d "$@" && docker compose logs -f
+    "$SCRIPT_DIR/wt-preflight" $preflight_yes || exit 1
+    docker compose up -d --build "$@" || exit 1
+    docker compose watch --no-up &
+    WATCH_PID=$!
+    trap 'kill $WATCH_PID 2>/dev/null' EXIT INT TERM
+    docker compose logs -f
     ;;
   watch)
-    "$SCRIPT_DIR/wt-preflight" || exit 1
+    "$SCRIPT_DIR/wt-preflight" $preflight_yes || exit 1
     docker compose watch "$@"
     ;;
   where)
