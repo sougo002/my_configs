@@ -1,13 +1,10 @@
 #!/bin/sh
 # wt — worktree-aware docker compose dispatcher.
 #
-# Problem it solves:
-#   When you use git worktrees and each worktree has its own docker-compose.yml
-#   sharing the same host ports, only one worktree's stack can run at a time.
-#   It's easy to forget which worktree is up, start another, and hit port
-#   conflicts or tear down the wrong stack.
-#
-#   `wt` keeps track of the running worktree and swaps safely.
+# Detects "another stack with the same COMPOSE_PROJECT_NAME is already up
+# elsewhere" and prompts before swapping. With -p NAME (or by exporting
+# COMPOSE_PROJECT_NAME yourself), different repos / worktrees can run in
+# parallel under distinct project names.
 
 set -u
 
@@ -19,31 +16,33 @@ usage() {
 wt — worktree-aware docker compose dispatcher
 
 Usage:
-  wt up [-y] [args...]    Start docker compose in the current worktree
-                          (detached, with --build so the image always reflects
-                          the current worktree's state), then watch for file
-                          changes and follow logs. If another worktree of the
-                          same repo has a stack running, prompt to stop it
-                          first.
-  wt watch [-y] [args...] Run docker compose watch with the same conflict check.
-  wt where                Show which worktree (if any) is currently running
-                          docker compose for the repo containing $PWD.
-  wt --help               Show this help.
+  wt up    [opts] [args]   Run `compose up --build` (foreground)
+  wt watch [opts] [args]   Run `compose watch`
+  wt where                 Show running stack for this project
+  wt --help                Show this help
 
 Options:
-  -y, --yes   Auto-confirm stopping another worktree's running stack.
+  -y, --yes          Auto-confirm stopping conflicting stack
+  -d, --detach       Background mode (logs to /tmp)
+  -p, --project N    Set COMPOSE_PROJECT_NAME (parallel runs)
+
+If a stack with the same project name is running elsewhere,
+up/watch prompts before swapping. For per-repo parallelism,
+pass distinct -p NAME or export COMPOSE_PROJECT_NAME first.
 EOF
 }
 
 sub=${1:-}
 [ $# -gt 0 ] && shift
 
-# For up/watch, strip -y/--yes from positional params (preserving order & whitespace).
-# Sets $preflight_yes to "-y" when present. Inlined because a function cannot
+# For up/watch: strip wt-level flags from positional params.
+# Sets $preflight_yes / $detach / $project. Inlined because a function cannot
 # modify the caller's positional parameters.
 case "$sub" in
   up|watch)
     preflight_yes=""
+    detach=""
+    project=""
     _orig=$#
     _i=0
     while [ "$_i" -lt "$_orig" ]; do
@@ -51,25 +50,48 @@ case "$sub" in
       shift
       case "$_arg" in
         -y|--yes) preflight_yes="-y" ;;
+        -d|--detach) detach="1" ;;
+        -p|--project)
+          if [ "$_i" -ge "$((_orig - 1))" ]; then
+            printf 'wt: %s requires an argument\n' "$_arg" >&2
+            exit 1
+          fi
+          project=$1
+          shift
+          _i=$((_i + 1))
+          ;;
+        --project=*) project=${_arg#--project=} ;;
+        -p=*) project=${_arg#-p=} ;;
         *) set -- "$@" "$_arg" ;;
       esac
       _i=$((_i + 1))
     done
+    if [ -n "$project" ]; then
+      COMPOSE_PROJECT_NAME=$project
+      export COMPOSE_PROJECT_NAME
+    fi
     ;;
 esac
 
 case "$sub" in
   up)
     "$SCRIPT_DIR/wt-preflight" $preflight_yes || exit 1
-    docker compose up -d --build "$@" || exit 1
-    docker compose watch --no-up &
-    WATCH_PID=$!
-    trap 'kill $WATCH_PID 2>/dev/null' EXIT INT TERM
-    docker compose logs -f
+    if [ -n "$detach" ]; then
+      docker compose up -d --build "$@"
+    else
+      docker compose up --build "$@"
+    fi
     ;;
   watch)
     "$SCRIPT_DIR/wt-preflight" $preflight_yes || exit 1
-    docker compose watch "$@"
+    if [ -n "$detach" ]; then
+      log_tag=${COMPOSE_PROJECT_NAME:-$(basename "$PWD")}
+      log_file="/tmp/wt-watch-${log_tag}-$$.log"
+      nohup docker compose watch "$@" >"$log_file" 2>&1 &
+      printf 'wt watch started in background (pid=%s, log=%s)\n' "$!" "$log_file"
+    else
+      docker compose watch "$@"
+    fi
     ;;
   where)
     "$SCRIPT_DIR/wt-status" "$PWD" --verbose

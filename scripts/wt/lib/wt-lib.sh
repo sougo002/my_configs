@@ -40,9 +40,9 @@ resolve_branch_of_path() {
   fi
 }
 
-# Find the running stack (if any) whose project_dir is within the current repo's worktree set.
-# Input: cwd. Output: "<worktree_path>\t<config_file>" on stdout (single line), or nothing.
-find_running_stack_for_repo() {
+# Find all running stacks whose project_dir is within the current repo's worktree set.
+# Input: cwd. Output: zero or more lines of "<worktree_path>\t<config_file>".
+find_running_stacks_for_repo() {
   cwd=$1
   wt_file=$(mktemp -t wt-wt.XXXXXX) || return 1
   stacks_file=$(mktemp -t wt-stacks.XXXXXX) || { rm -f "$wt_file"; return 1; }
@@ -57,7 +57,7 @@ find_running_stack_for_repo() {
     return 0
   fi
 
-  match_running_in_worktrees "$wt_file" "$stacks_file" | head -n 1
+  match_running_in_worktrees "$wt_file" "$stacks_file"
 
   rm -f "$wt_file" "$stacks_file"
   trap - EXIT

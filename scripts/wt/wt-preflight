@@ -1,12 +1,14 @@
 #!/bin/sh
-# If a docker compose stack for the current repo is running in another worktree,
-# prompt the user to stop it before starting a new one here.
+# If any docker compose stack for the current repo is running in another
+# worktree, prompt the user to stop them before starting a new one here.
+#
+# Multiple "other" stacks are listed together and stopped in one decision.
 #
 # Options:
-#   -y, --yes   Auto-confirm stopping the other worktree's stack (non-interactive)
+#   -y, --yes   Auto-confirm stopping the other worktrees' stacks (non-interactive)
 #
 # Exit codes:
-#   0 — no conflict, or user accepted to stop the other worktree's stack
+#   0 — no conflict, or user accepted to stop the other worktrees' stacks
 #   1 — user declined, bail out
 
 set -u
@@ -32,36 +34,42 @@ if [ -z "$current_worktree" ]; then
   exit 0
 fi
 
-hit=$(find_running_stack_for_repo "$cwd")
-if [ -z "$hit" ]; then
+others_file=$(mktemp -t wt-others.XXXXXX) || exit 1
+trap 'rm -f "$others_file"' EXIT
+
+find_running_stacks_for_repo "$cwd" \
+  | awk -F'\t' -v self="$current_worktree" '$1 != self { print $1 }' \
+  > "$others_file"
+
+if [ ! -s "$others_file" ]; then
   exit 0
 fi
 
-hit_dir=$(printf '%s' "$hit" | awk -F'\t' '{print $1}')
+printf 'docker compose is already running in other worktree(s) of this repo:\n' >&2
+while read -r hit_dir; do
+  hit_branch=$(resolve_branch_of_path "$hit_dir")
+  hit_label=${hit_branch:-$(basename "$hit_dir")}
+  printf '  - %s\n    path: %s\n' "$hit_label" "$hit_dir" >&2
+done < "$others_file"
 
-if [ "$hit_dir" = "$current_worktree" ]; then
-  exit 0
-fi
-
-hit_branch=$(resolve_branch_of_path "$hit_dir")
-hit_label=${hit_branch:-$hit_dir}
-
-printf 'docker compose is already running in another worktree:\n' >&2
-printf '  branch: %s\n' "$hit_label" >&2
-printf '  path:   %s\n' "$hit_dir" >&2
+stop_all() {
+  while read -r hit_dir; do
+    (cd "$hit_dir" && docker compose down) || return 1
+  done < "$others_file"
+}
 
 if [ "$assume_yes" -eq 1 ]; then
-  printf 'Stop it and continue here? [y/N] y (auto)\n' >&2
-  (cd "$hit_dir" && docker compose down) || exit 1
+  printf 'Stop them and continue here? [y/N] y (auto)\n' >&2
+  stop_all || exit 1
   exit 0
 fi
 
-printf 'Stop it and continue here? [y/N] ' >&2
+printf 'Stop them and continue here? [y/N] ' >&2
 read -r answer </dev/tty || exit 1
 
 case "$answer" in
   y|Y|yes|YES)
-    (cd "$hit_dir" && docker compose down) || exit 1
+    stop_all || exit 1
     exit 0
     ;;
   *)
