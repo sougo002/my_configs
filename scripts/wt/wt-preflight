@@ -34,6 +34,30 @@ if [ -z "$current_worktree" ]; then
   exit 0
 fi
 
+# Reap orphan `docker compose watch` from previous sessions of this worktree.
+# `docker compose down` (used when swapping stacks across worktrees) does NOT
+# terminate the watch process, so it keeps holding the project lock and blocks
+# the next `wt watch` from starting in the same worktree.
+orphans=$(list_compose_watch_pids_in_cwd "$current_worktree")
+if [ -n "$orphans" ]; then
+  printf 'wt: cleaning up orphan docker compose watch from previous session(s):\n' >&2
+  printf '%s\n' "$orphans" | while IFS= read -r pid; do
+    [ -n "$pid" ] || continue
+    cmd=$(ps -o command= -p "$pid" 2>/dev/null)
+    printf '  - pid=%s: %s\n' "$pid" "$cmd" >&2
+    kill "$pid" 2>/dev/null || true
+  done
+  # Give them a moment to release the lock; force-kill any stragglers.
+  sleep 1
+  remaining=$(list_compose_watch_pids_in_cwd "$current_worktree")
+  if [ -n "$remaining" ]; then
+    printf '%s\n' "$remaining" | while IFS= read -r pid; do
+      [ -n "$pid" ] || continue
+      kill -9 "$pid" 2>/dev/null || true
+    done
+  fi
+fi
+
 others_file=$(mktemp -t wt-others.XXXXXX) || exit 1
 trap 'rm -f "$others_file"' EXIT
 

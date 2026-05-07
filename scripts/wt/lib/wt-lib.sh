@@ -62,3 +62,18 @@ find_running_stacks_for_repo() {
   rm -f "$wt_file" "$stacks_file"
   trap - EXIT
 }
+
+# Echo PIDs of running `docker compose watch` (or its plugin binary) whose
+# current working directory matches the given path. One PID per line.
+# Empty if none found. macOS-compatible (uses lsof for cwd lookup).
+list_compose_watch_pids_in_cwd() {
+  target=$1
+  pgrep -f 'compose watch' 2>/dev/null | while IFS= read -r pid; do
+    [ -n "$pid" ] || continue
+    pcwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | awk '/^n/{print substr($0, 2); exit}')
+    if [ "$pcwd" = "$target" ]; then
+      printf '%s\n' "$pid"
+    fi
+  done
+  return 0
+}
