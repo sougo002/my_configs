@@ -10,21 +10,25 @@ list_worktree_paths() {
     | awk '/^worktree /{print substr($0, 10)}'
 }
 
-# Print all running docker compose stacks as TSV: "<project_dir>\t<first_config_file>".
+# Print all running docker compose stacks as TSV:
+# "<project_dir>\t<first_config_file>\t<project_name>".
 # project_dir is the dirname of the first config file.
+# project_name is the actual COMPOSE_PROJECT_NAME the stack was started with —
+# required to target the stack with `docker compose -p`, since cwd-derived
+# defaults silently mismatch when the stack was started with `-p NAME`.
 # Emits nothing if Docker is unavailable.
 list_running_stacks_tsv() {
   docker compose ls --format json 2>/dev/null \
-    | jq -r '.[] | [(.ConfigFiles|split(",")[0]|split("/")[:-1]|join("/")), (.ConfigFiles|split(",")[0])] | @tsv' 2>/dev/null
+    | jq -r '.[] | [(.ConfigFiles|split(",")[0]|split("/")[:-1]|join("/")), (.ConfigFiles|split(",")[0]), .Name] | @tsv' 2>/dev/null
 }
 
 # Given a worktree paths file and a running stacks TSV file,
-# echo "<worktree_path>\t<config_file>" for stacks whose project_dir matches
-# one of the worktree paths.
+# echo "<worktree_path>\t<config_file>\t<project_name>" for stacks whose
+# project_dir matches one of the worktree paths.
 match_running_in_worktrees() {
   awk -F'\t' '
     NR==FNR { wt[$1]=1; next }
-    ($1 in wt) { print $1 "\t" $2 }
+    ($1 in wt) { print $1 "\t" $2 "\t" $3 }
   ' "$1" "$2"
 }
 
@@ -41,7 +45,7 @@ resolve_branch_of_path() {
 }
 
 # Find all running stacks whose project_dir is within the current repo's worktree set.
-# Input: cwd. Output: zero or more lines of "<worktree_path>\t<config_file>".
+# Input: cwd. Output: zero or more lines of "<worktree_path>\t<config_file>\t<project_name>".
 find_running_stacks_for_repo() {
   cwd=$1
   wt_file=$(mktemp -t wt-wt.XXXXXX) || return 1

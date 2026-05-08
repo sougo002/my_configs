@@ -62,7 +62,7 @@ others_file=$(mktemp -t wt-others.XXXXXX) || exit 1
 trap 'rm -f "$others_file"' EXIT
 
 find_running_stacks_for_repo "$cwd" \
-  | awk -F'\t' -v self="$current_worktree" '$1 != self { print $1 }' \
+  | awk -F'\t' -v self="$current_worktree" '$1 != self { print $1 "\t" $3 }' \
   > "$others_file"
 
 if [ ! -s "$others_file" ]; then
@@ -70,15 +70,18 @@ if [ ! -s "$others_file" ]; then
 fi
 
 printf 'docker compose is already running in other worktree(s) of this repo:\n' >&2
-while read -r hit_dir; do
+while IFS="$(printf '\t')" read -r hit_dir hit_proj; do
   hit_branch=$(resolve_branch_of_path "$hit_dir")
   hit_label=${hit_branch:-$(basename "$hit_dir")}
-  printf '  - %s\n    path: %s\n' "$hit_label" "$hit_dir" >&2
+  printf '  - %s (project: %s)\n    path: %s\n' "$hit_label" "$hit_proj" "$hit_dir" >&2
 done < "$others_file"
 
 stop_all() {
-  while read -r hit_dir; do
-    (cd "$hit_dir" && docker compose down) || return 1
+  # Pass `-p <project>` so we target the actual COMPOSE_PROJECT_NAME the stack
+  # was started with, instead of the cwd-derived default which silently
+  # mismatches when the stack was started with `-p NAME`.
+  while IFS="$(printf '\t')" read -r hit_dir hit_proj; do
+    (cd "$hit_dir" && docker compose -p "$hit_proj" down) || return 1
   done < "$others_file"
 }
 
