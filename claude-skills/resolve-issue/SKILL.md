@@ -1,7 +1,7 @@
 ---
 name: resolve-issue
-description: GitHub Issueを解決し、コミット・PR作成まで一貫して行います。Issue番号を指定して使用。
-allowed-tools: Read, Grep, Glob, Bash, Task, Edit, Write, AskUserQuestion, EnterWorktree, ExitWorktree
+description: GitHub Issue を解決する。実装系（機能追加・バグ修正・リファクタ）と調査系で分岐する。Issue 番号を指定して使用。
+allowed-tools: Read, Grep, Glob, Bash, Task, Edit, Write, AskUserQuestion, ExitWorktree, Skill
 ---
 
 # Issue解決スキル
@@ -18,169 +18,69 @@ allowed-tools: Read, Grep, Glob, Bash, Task, Edit, Write, AskUserQuestion, Enter
 
 ## ワークフロー
 
-### Step 1: Issue分析
+### Step 1: Issue 取得と種別判定
 
 ```bash
 gh issue view <issue番号> --json title,body,labels,assignees,comments
 ```
 
-Issueの内容を分析し、以下を把握する：
-- 問題の概要
-- 期待される動作
-- 再現手順（あれば）
-- 関連するコード領域
+Issue 内容とラベル（`bug`, `feature`, `investigation` 等）から種別を判定する:
 
-### Step 2: 実装計画の提示
+- **実装系**: 機能追加・バグ修正・リファクタ → 実装系フロー
+- **調査系**: 調査・分析 → 調査系フロー
 
-コード変更前に、以下を提示してユーザー確認を取る：
-- 変更対象ファイル
-- 実装アプローチ
-- 考慮すべき点
+判定が曖昧な場合は `AskUserQuestion` で確認する。
 
-### Step 3: Worktree作成
+## 実装系フロー
 
-実装計画の承認後、コード変更の前にworktreeで隔離された作業環境を作成する:
+### 作業内容化と承認
 
-1. 最新のリモートを取得
+Issue 内容を以下の形式で **作業内容** にまとめて提示する:
 
-```bash
-git fetch origin
-```
+- 目的・スコープ・スコープ外
+- エッジケース・前提条件
+- 影響リポジトリ・想定変更ファイル群
+- 設計方針の概要
 
-2. EnterWorktreeでworktreeを作成
+`AskUserQuestion` で「この内容で進める / 修正する / 中止する」の合意を取る。
 
-worktree名の形式: `<type>/<簡潔な説明>`（例: `fix/auth-token-expiry`, `feat/add-search-filter`）
-- Issueのタイトルやラベルから適切なtype（fix, feat, refactor, chore等）と説明を決定する
+### /wt-dev 起動
 
-```
-EnterWorktree(name="<worktree名>")
-```
+合意後、`Skill` ツールで `/wt-dev` を起動する。
 
-3. worktree内でブランチをdevelopmentベースにリセット（**必ずEnterWorktree後に実行すること**）
+### /pr 起動
 
-```bash
-# worktree内であることを確認してからリセット（.gitがファイルならworktree内）
-test -f .git && git reset --hard origin/development || echo "ERROR: worktree内ではありません。中断します。"
-```
+`/wt-dev` 完了後、worktree 内で `Skill` ツールで `/pr` を起動する。本文には `Resolves #<Issue番号>` を含める。
 
-### Step 4: コード実装
-
-計画に基づいてコードを実装する：
-- 既存のコードスタイルに従う
-- 必要に応じてテストを追加/修正
-- エラーハンドリングを適切に行う
-
-### Step 5: テスト実行
-
-実装完了後、テストを実行して品質を確認する。
-
-#### テスト環境の検出
-
-プロジェクトルートから使用されているテストフレームワークを自動検出する:
-
-| ファイル/設定 | コマンド |
-|-------------|---------|
-| `Makefile` に `test` ターゲット | `make test` |
-| `package.json` に `test` スクリプト | `npm test` |
-| `pytest.ini` / `pyproject.toml` / `conftest.py` | `pytest` |
-| `go.mod` | `go test ./...` |
-| `Cargo.toml` | `cargo test` |
-
-優先順: `Makefile > package.json > 個別フレームワーク`。検出できない場合はテストステップをスキップする。
-
-#### テスト実行と失敗時の対応
-
-```bash
-<検出されたテストコマンド>
-```
-
-- **全テスト成功**: Step 6 に進む
-- **失敗あり**: 失敗した各テストについて原因を分析し修正する
-  - **プロダクションコードのバグ** → 実装を修正
-  - **テストコードのバグ/陳腐化** → テストを更新
-  - **環境依存**（ポート衝突、外部サービス等）→ セットアップを修正するか、該当テストを特定してスキップ対象にする
-
-修正後、再度テストを実行する。全テストが成功するまで修正→再実行を繰り返す。
-
-### Step 6: 確認 → コミット
-
-実装完了後、ユーザーに確認を求める：
-
-```
-実装が完了しました。
-
-## 変更内容
-- [変更ファイル一覧と概要]
-
-コミットを作成しますか？
-```
-
-**確認後のコミット作成:**
-```bash
-git add <変更ファイル>
-git commit -m "<コミットメッセージ>"
-```
-
-コミットメッセージ形式:
-```
-<type>: <簡潔な説明>
-
-<詳細な説明（必要に応じて）>
-```
-
-type: fix, feat, refactor, docs, test, chore など
-
-### Step 6: 確認 → PR作成
-
-コミット後、ユーザーに確認を求める：
-
-```
-コミットを作成しました。
-
-PRを作成しますか？
-```
-
-**確認後のPR作成:**
-
-1. 現在のブランチがmain/developmentでないことを確認
-2. ブランチがなければ作成してプッシュ
-
-```bash
-git push -u origin <ブランチ名>
-```
-
-3. PRテンプレートをReadツールで取得（以下の順で探索）
-   - `.github/PULL_REQUEST_TEMPLATE.md`
-   - `.github/pull_request_template.md`
-   - `PULL_REQUEST_TEMPLATE.md`
-
-4. PR作成
-
-```bash
-gh pr create --title "<PRタイトル>" --body "<テンプレートに沿った本文>"
-```
-
-テンプレートがない場合のデフォルト本文:
-```markdown
-## 概要
-<Issueの問題と解決内容>
-
-## 変更内容
-- <変更点1>
-- <変更点2>
-```
-
-### Step 7: Worktreeから退出
-
-PR作成後、ExitWorktreeで元のディレクトリに戻る:
+### Worktreeから退出
 
 ```
 ExitWorktree(action="keep")
 ```
 
-- worktreeとブランチはディスク上に保持される（後から戻れる）
+## 調査系フロー
 
-## 注意事項
+### 調査範囲の確認
 
-- 大規模な変更の場合は段階的に実装する
-- セキュリティに関わる変更は特に慎重に行う
+Issue から調査範囲・期待されるアウトプットを抽出し、`AskUserQuestion` で「この範囲で進める / 修正する / 中止する」の合意を取る。
+
+### 調査実施
+
+合意した範囲でコード調査・分析を行う。コード変更は行わない。
+
+### 結果のコメント投稿
+
+調査結果を Markdown でまとめ、Issue にコメント投稿する。
+
+```bash
+gh issue comment <issue番号> --body "$(cat <<'EOF'
+## 調査結果
+
+<内容>
+
+## 結論
+
+<結論・推奨アクション>
+EOF
+)"
+```
