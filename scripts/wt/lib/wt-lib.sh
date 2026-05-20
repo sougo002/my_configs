@@ -67,6 +67,36 @@ find_running_stacks_for_repo() {
   trap - EXIT
 }
 
+# Echo a default COMPOSE_PROJECT_NAME for the given path, combining the repo
+# name and the worktree directory name so that worktrees with the same basename
+# across different repos (e.g. my-app-algo/.claude/worktrees/feat-x vs
+# my-app-ai-widget/.claude/worktrees/feat-x) do not collide.
+#
+# Format:
+#   <repo-basename>-<cwd-basename>   when cwd is a non-main worktree
+#   <repo-basename>                  when cwd is the main worktree
+#   <cwd-basename>                   when cwd is not inside a git repo
+#
+# The result is lowercased and non-[a-z0-9_-] chars are folded to '-' to satisfy
+# docker compose project-name constraints.
+compute_default_project_name() {
+  cwd=$1
+  main_worktree=$(git -C "$cwd" --no-optional-locks worktree list --porcelain 2>/dev/null \
+    | awk '/^worktree /{print substr($0, 10); exit}')
+  cwd_abs=$(cd "$cwd" 2>/dev/null && pwd) || cwd_abs=$cwd
+  if [ -z "$main_worktree" ]; then
+    raw=$(basename "$cwd_abs")
+  else
+    repo_name=$(basename "$main_worktree")
+    if [ "$cwd_abs" = "$main_worktree" ]; then
+      raw=$repo_name
+    else
+      raw="${repo_name}-$(basename "$cwd_abs")"
+    fi
+  fi
+  printf '%s' "$raw" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9_-]/-/g'
+}
+
 # Echo PIDs of running `docker compose watch` (or its plugin binary) whose
 # current working directory matches the given path. One PID per line.
 # Empty if none found. macOS-compatible (uses lsof for cwd lookup).
