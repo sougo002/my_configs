@@ -1,7 +1,7 @@
 ---
 name: review-pr
 description: PRのURLまたはリポジトリ名:ブランチ名を受け取り、worktree上でレビューを実行します。PRレビュー時に使用。
-allowed-tools: Read, Grep, Glob, Bash, Task
+allowed-tools: Read, Grep, Glob, Bash, Task, Skill
 ---
 
 # PRレビュースキル

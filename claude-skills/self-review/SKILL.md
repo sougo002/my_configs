@@ -1,7 +1,7 @@
 ---
 name: self-review
 description: 現在のブランチの変更をセルフレビューし、発見した問題を自動修正・コミットします。コミット前のセルフチェックに使用。
-allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr view *), Bash(git status*), Bash(git fetch *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git branch*), Task, AskUserQuestion
+allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr view *), Bash(git status*), Bash(git fetch *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git branch*), Task, AskUserQuestion, Skill
 ---
 
 # セルフレビュースキル
