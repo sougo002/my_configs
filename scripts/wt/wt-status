@@ -1,14 +1,9 @@
 #!/bin/sh
 # Report the running docker compose stack(s) for the repo containing $1
-# (default: $PWD).
-#
-# Default output (for statuslines):
-#   (empty)        — no stack running for this repo
-#   "▶"            — running in the current worktree (regardless of others)
-#   "▶ <branch>"   — running only in another worktree of the same repo
-#
-# With --verbose, emits a human-readable multi-line summary that lists every
-# matching stack (so multi-stack states are visible).
+# (default: $PWD), one TSV line per stack:
+#   <kind>\t<branch>\t<worktree_path>
+# where <kind> is "self" if the stack's worktree is $cwd's worktree, else "other".
+# Empty output if no stack is running for the repo (or $cwd is not in a git repo).
 
 set -u
 
@@ -18,56 +13,16 @@ SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
 . "$SCRIPT_DIR/lib/wt-lib.sh"
 
 cwd=${1:-$PWD}
-mode=${2:-}
 
 current_worktree=$(git -C "$cwd" --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
-if [ -z "$current_worktree" ]; then
-  [ "$mode" = "--verbose" ] && printf 'not a git repository\n'
-  exit 0
-fi
+[ -z "$current_worktree" ] && exit 0
 
-all_file=$(mktemp -t wt-all.XXXXXX) || exit 1
-trap 'rm -f "$all_file"' EXIT
-find_running_stacks_for_repo "$cwd" | awk -F'\t' '{print $1}' > "$all_file"
-
-if [ ! -s "$all_file" ]; then
-  [ "$mode" = "--verbose" ] && printf 'no stack running for this repo\n'
-  exit 0
-fi
-
-self_running=0
-others_count=0
-while read -r dir; do
+find_running_stacks_for_repo "$cwd" | awk -F'\t' '{print $1}' | while read -r dir; do
   if [ "$dir" = "$current_worktree" ]; then
-    self_running=1
+    kind=self
   else
-    others_count=$((others_count + 1))
+    kind=other
   fi
-done < "$all_file"
-
-if [ "$mode" = "--verbose" ]; then
-  if [ "$self_running" -eq 1 ]; then
-    self_branch=$(resolve_branch_of_path "$current_worktree")
-    printf 'running here (%s)\n' "${self_branch:-$(basename "$current_worktree")}"
-  fi
-  if [ "$others_count" -gt 0 ]; then
-    if [ "$self_running" -eq 1 ]; then
-      printf 'also running in other worktree(s) of this repo:\n'
-    else
-      printf 'running in other worktree(s) of this repo:\n'
-    fi
-    while read -r dir; do
-      [ "$dir" = "$current_worktree" ] && continue
-      branch=$(resolve_branch_of_path "$dir")
-      printf '  - %s\n    path: %s\n' "${branch:-$(basename "$dir")}" "$dir"
-    done < "$all_file"
-  fi
-else
-  if [ "$self_running" -eq 1 ]; then
-    printf '▶'
-  else
-    first_other=$(head -n 1 "$all_file")
-    branch=$(resolve_branch_of_path "$first_other")
-    printf '▶ %s' "${branch:-$(basename "$first_other")}"
-  fi
-fi
+  branch=$(resolve_branch_of_path "$dir")
+  printf '%s\t%s\t%s\n' "$kind" "${branch:-$(basename "$dir")}" "$dir"
+done

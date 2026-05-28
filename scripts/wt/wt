@@ -102,7 +102,31 @@ case "$sub" in
     fi
     ;;
   where)
-    "$SCRIPT_DIR/wt-status" "$PWD" --verbose
+    if ! git -C "$PWD" --no-optional-locks rev-parse --show-toplevel >/dev/null 2>&1; then
+      printf 'not a git repository\n'
+      exit 0
+    fi
+    status=$("$SCRIPT_DIR/wt-status" "$PWD")
+    if [ -z "$status" ]; then
+      printf 'no stack running for this repo\n'
+      exit 0
+    fi
+    self_line=$(printf '%s\n' "$status" | awk -F'\t' '$1 == "self" { print; exit }')
+    other_lines=$(printf '%s\n' "$status" | awk -F'\t' '$1 == "other"')
+    if [ -n "$self_line" ]; then
+      branch=$(printf '%s' "$self_line" | awk -F'\t' '{print $2}')
+      printf 'running here (%s)\n' "$branch"
+    fi
+    if [ -n "$other_lines" ]; then
+      if [ -n "$self_line" ]; then
+        printf 'also running in other worktree(s) of this repo:\n'
+      else
+        printf 'running in other worktree(s) of this repo:\n'
+      fi
+      printf '%s\n' "$other_lines" | while IFS="$(printf '\t')" read -r _kind branch path; do
+        printf '  - %s\n    path: %s\n' "$branch" "$path"
+      done
+    fi
     ;;
   -h|--help|help)
     usage
