@@ -10,16 +10,23 @@ list_worktree_paths() {
     | awk '/^worktree /{print substr($0, 10)}'
 }
 
-# Print all running docker compose stacks as TSV:
-# "<project_dir>\t<first_config_file>\t<project_name>".
+# Print docker compose stacks as TSV:
+# "<project_dir>\t<first_config_file>\t<project_name>\t<status>".
 # project_dir is the dirname of the first config file.
 # project_name is the actual COMPOSE_PROJECT_NAME the stack was started with —
 # required to target the stack with `docker compose -p`, since cwd-derived
 # defaults silently mismatch when the stack was started with `-p NAME`.
+# $1: pass "--all" to include stopped stacks (default: running only).
 # Emits nothing if Docker is unavailable.
+_list_stacks_tsv() {
+  docker compose ls ${1:-} --format json 2>/dev/null \
+    | jq -r '.[] | [(.ConfigFiles|split(",")[0]|split("/")[:-1]|join("/")), (.ConfigFiles|split(",")[0]), .Name, .Status] | @tsv' 2>/dev/null
+}
+
+# Running stacks only. Backwards-compatible wrapper for callers that read the
+# first three fields (project_dir, config_file, project_name).
 list_running_stacks_tsv() {
-  docker compose ls --format json 2>/dev/null \
-    | jq -r '.[] | [(.ConfigFiles|split(",")[0]|split("/")[:-1]|join("/")), (.ConfigFiles|split(",")[0]), .Name] | @tsv' 2>/dev/null
+  _list_stacks_tsv ""
 }
 
 # Given a worktree paths file and a running stacks TSV file,
@@ -65,6 +72,45 @@ find_running_stacks_for_repo() {
 
   rm -f "$wt_file" "$stacks_file"
   trap - EXIT
+}
+
+# Echo "orphaned" stacks for the repo containing $1: stacks whose worktree
+# directory no longer exists on disk but whose containers are still around
+# (running or stopped). Output TSV: "<project_name>\t<status>\t<project_dir>".
+#
+# A stack qualifies only if its directory is MISSING *and* it belongs to this
+# repo — established either by a registered worktree path (git keeps deleted
+# worktrees listed as "prunable" until pruned) or by sitting under this repo's
+# `.claude/worktrees/` base (covers worktrees already pruned from git). The
+# repo scope is path/git-derived, never project-name based, so stacks of other
+# repos and worktrees that still exist on disk are never reported.
+find_orphan_stacks_for_repo() {
+  cwd=$1
+  main_worktree=$(git -C "$cwd" --no-optional-locks worktree list --porcelain 2>/dev/null \
+    | awk '/^worktree /{print substr($0, 10); exit}')
+  [ -n "$main_worktree" ] || return 0
+  wt_base="$main_worktree/.claude/worktrees/"
+
+  wt_file=$(mktemp -t wt-wt.XXXXXX) || return 1
+  list_worktree_paths "$cwd" > "$wt_file"
+
+  _list_stacks_tsv "--all" | while IFS="$(printf '\t')" read -r dir _config proj status; do
+    [ -n "$dir" ] || continue
+    # Still on disk → not an orphan.
+    [ -d "$dir" ] && continue
+    # Repo scope: a (now-missing) registered worktree, or under our worktree base.
+    if grep -Fxq "$dir" "$wt_file"; then
+      :
+    else
+      case "$dir" in
+        "$wt_base"*) : ;;
+        *) continue ;;
+      esac
+    fi
+    printf '%s\t%s\t%s\n' "$proj" "$status" "$dir"
+  done
+
+  rm -f "$wt_file"
 }
 
 # Echo a default COMPOSE_PROJECT_NAME for the given path, combining the repo

@@ -20,17 +20,23 @@ wt — worktree-aware docker compose dispatcher
 Usage:
   wt up    [opts] [args]   Run `compose up --build` (foreground)
   wt watch [opts] [args]   Run `compose watch`
+  wt prune [opts]          Stop stacks left over from deleted worktrees
   wt where                 Show running stack for this project
   wt --help                Show this help
 
 Options:
-  -y, --yes          Auto-confirm stopping conflicting stack
+  -y, --yes          Auto-confirm stopping conflicting/orphaned stacks
+  -n, --dry-run      (prune) List orphaned stacks only; stop nothing
   -d, --detach       Background mode (logs to /tmp)
   -p, --project N    Set COMPOSE_PROJECT_NAME (parallel runs)
 
 If a stack with the same project name is running elsewhere,
 up/watch prompts before swapping. For per-repo parallelism,
 pass distinct -p NAME or export COMPOSE_PROJECT_NAME first.
+
+`prune` finds stacks of this repo whose worktree directory was
+deleted but whose containers (running or stopped) remain, and
+stops them after confirmation.
 EOF
 }
 
@@ -100,6 +106,9 @@ case "$sub" in
     else
       docker compose watch "$@"
     fi
+    ;;
+  prune)
+    "$SCRIPT_DIR/wt-prune" "$@"
     ;;
   where)
     if ! git -C "$PWD" --no-optional-locks rev-parse --show-toplevel >/dev/null 2>&1; then

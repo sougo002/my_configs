@@ -1,0 +1,91 @@
+#!/bin/sh
+# wt prune — stop docker compose stacks orphaned by a deleted worktree
+# (worktree directory gone, containers still around) for the current repo.
+#
+# Orphans are detected by a MISSING worktree directory, scoped to this repo
+# (a registered worktree of the repo, or a path under the repo's
+# `.claude/worktrees/` base). Project-name matching is deliberately NOT used,
+# so worktrees that still exist on disk are never affected. Both running and
+# stopped (created) stacks are considered.
+#
+# Options:
+#   -y, --yes       Stop all orphaned stacks without prompting
+#   -n, --dry-run   List orphaned stacks only; stop nothing
+#
+# Exit codes:
+#   0 — nothing to do, listed (dry-run), or stacks stopped
+#   1 — user declined, or a `docker compose down` failed
+
+set -u
+
+assume_yes=0
+dry_run=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -y|--yes) assume_yes=1; shift ;;
+    -n|--dry-run) dry_run=1; shift ;;
+    --) shift; break ;;
+    *) break ;;
+  esac
+done
+
+SELF=$(readlink -f "$0")
+SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
+# shellcheck source=lib/wt-lib.sh
+. "$SCRIPT_DIR/lib/wt-lib.sh"
+
+cwd=$PWD
+
+if ! git -C "$cwd" --no-optional-locks rev-parse --show-toplevel >/dev/null 2>&1; then
+  printf 'wt: not a git repository\n' >&2
+  exit 0
+fi
+
+orphans_file=$(mktemp -t wt-orphans.XXXXXX) || exit 1
+trap 'rm -f "$orphans_file"' EXIT
+
+find_orphan_stacks_for_repo "$cwd" > "$orphans_file"
+
+if [ ! -s "$orphans_file" ]; then
+  printf 'no orphaned stacks for this repo\n'
+  exit 0
+fi
+
+printf 'orphaned stacks for this repo (worktree gone, containers remain):\n' >&2
+while IFS="$(printf '\t')" read -r proj status dir; do
+  printf '  - project: %s   status: %s\n    path:    %s (missing)\n' "$proj" "$status" "$dir" >&2
+done < "$orphans_file"
+
+if [ "$dry_run" -eq 1 ]; then
+  exit 0
+fi
+
+count=$(wc -l < "$orphans_file" | tr -d ' ')
+
+stop_all() {
+  # `docker compose -p NAME down` resolves containers via their compose labels,
+  # so it works without the (now-deleted) worktree directory or compose file.
+  while IFS="$(printf '\t')" read -r proj status dir; do
+    docker compose -p "$proj" down || return 1
+  done < "$orphans_file"
+}
+
+if [ "$assume_yes" -eq 1 ]; then
+  printf 'Stop and remove these %s stack(s)? [y/N] y (auto)\n' "$count" >&2
+  stop_all || exit 1
+  exit 0
+fi
+
+printf 'Stop and remove these %s stack(s)? [y/N] ' "$count" >&2
+read -r answer </dev/tty || exit 1
+
+case "$answer" in
+  y|Y|yes|YES)
+    stop_all || exit 1
+    exit 0
+    ;;
+  *)
+    printf 'Aborted.\n' >&2
+    exit 1
+    ;;
+esac

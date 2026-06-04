@@ -77,11 +77,14 @@ while IFS="$(printf '\t')" read -r hit_dir hit_proj; do
 done < "$others_file"
 
 stop_all() {
-  # Pass `-p <project>` so we target the actual COMPOSE_PROJECT_NAME the stack
-  # was started with, instead of the cwd-derived default which silently
-  # mismatches when the stack was started with `-p NAME`.
+  # Target stacks purely by `-p <project>` (the actual COMPOSE_PROJECT_NAME the
+  # stack was started with). `docker compose -p NAME down` resolves containers
+  # via their compose labels, so it needs neither the compose file nor the
+  # worktree directory. This lets us stop a stack even when its worktree has
+  # been deleted (git still lists such worktrees as "prunable"); cd-ing into a
+  # missing $hit_dir would otherwise fail and abort the whole swap.
   while IFS="$(printf '\t')" read -r hit_dir hit_proj; do
-    (cd "$hit_dir" && docker compose -p "$hit_proj" down) || return 1
+    docker compose -p "$hit_proj" down || return 1
   done < "$others_file"
 }
 
