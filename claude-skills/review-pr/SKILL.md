@@ -56,7 +56,7 @@ workspace=$(dirname "$repo_root")
 2. `<workspace>/pr-review/reports/<repo>--<safe-branch>.md` の存在を確認する
 3. 判定:
    - **`re-review` が指定されている場合**: 既存レポートを無視し、Step 0 から全ステップを再実行する
-   - **レポートが存在する場合**: レポートの内容を読み込み、既存の所見を妥当性検証の入力として使用する。Step 0〜2 はスキップし、**Step 3 から開始**する。対応するworktreeが存在すればそのまま使用し、なければ Step 0 のみ実行してworktreeを準備する
+   - **レポートが存在する場合**: レポートの内容を読み込み、既存の所見を妥当性検証の入力として使用する。Step 2〜3 はスキップし、**Step 4（妥当性検証）から開始**する。PRの目的は既存レポートの「PRの目的」セクションを再利用し、無ければ Step 1 を実行して取得する。対応するworktreeが存在すればそのまま使用し、なければ Step 0 のみ実行してworktreeを準備する
    - **レポートが存在しない場合**: Step 0 から通常どおり開始する
 
 ### Step 0: Worktree作成
@@ -75,7 +75,35 @@ worktree_path="<workspace>/pr-review/worktrees/<repo>--$safe_branch"
 git worktree add "$worktree_path" origin/<branch>
 ```
 
-### Step 1: 差分取得（メインエージェント）
+### Step 1: PR目的の理解（メインエージェント）
+
+レビューに入る前に、このPRが何を解決しようとしているのかを把握する。
+
+```bash
+# PR URL入力の場合
+gh pr view <url> --json title,body,closingIssuesReferences
+
+# リポジトリ名:ブランチ名入力の場合は対応するPRを探す
+gh pr list --repo <owner>/<repo> --head <branch> --json number,title,body,closingIssuesReferences
+```
+
+- `closingIssuesReferences` にissueがあれば `gh issue view <number> --repo <owner>/<repo> --json title,body` で内容を取得する
+- PR本文中にissue参照（`#123`、issue URL等）があればそれも取得する
+- PRが見つからない場合は、コミットメッセージ（`git log <base>..HEAD --oneline`）とブランチ名から意図を推測する
+
+把握した内容を「**変更の目的**」としてまとめる:
+
+```
+- 解決したい課題: [issueやPR本文から]
+- 変更のアプローチ: [PR本文・コミットメッセージから]
+- スコープ外: [PR本文に明記があれば。なければ省略]
+```
+
+このサマリーは Step 3-4 のレビューに入力として渡し、最終レポートの「PRの目的」セクションにも記載する。
+
+複数リポジトリの場合は、リポジトリごとにPRを探して目的をまとめる（同一機能の分割PRであれば統合してよい）。
+
+### Step 2: 差分取得（メインエージェント）
 
 worktree上で実行する。
 
@@ -87,17 +115,18 @@ git diff <base>...HEAD                 # diff（ファイル単位で構造化�
 
 複数リポジトリの場合は、各worktreeで差分を取得し、リポジトリ名付きで結合する。
 
-### Step 2-3: レビュー実行と妥当性検証
+### Step 3-4: レビュー実行と妥当性検証
 
-[../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビュー（4サブエージェント）と妥当性検証を実行する。
+[../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビュー（5サブエージェント）と妥当性検証を実行する。
 
 - **作業ディレクトリ**: worktreeのパス
+- **変更の目的**: Step 1 でまとめたサマリーを渡す
 
-### Step 4: 統合（メインエージェント）
+### Step 5: 統合（メインエージェント）
 
 検証済みの指摘のみを統合し、出力形式に従ってレビュー結果を生成する。
 
-### Step 5: Worktree削除
+### Step 6: Worktree削除
 
 レビュー完了後、worktreeを削除するかユーザーに確認する。
 ユーザーがそのまま対応する可能性があるため、**確認なしに削除してはならない**。
@@ -124,6 +153,10 @@ git worktree remove "<workspace>/pr-review/worktrees/<repo>--$safe_branch"
 レビュー結果は `<workspace>/pr-review/reports/<repo>--<safe-branch>.md` に保存:
 
 ```markdown
+## PRの目的
+- 解決したい課題: [Step 1 のサマリー]
+- 変更のアプローチ: [Step 1 のサマリー]
+
 ## サマリー
 - 変更ファイル数: X
 - 行数: +XXX / -XXX
@@ -132,6 +165,7 @@ git worktree remove "<workspace>/pr-review/worktrees/<repo>--$safe_branch"
 ## 評価
 - グレード: [S/A+/A/B+/B/C+/C/D]
 - マージ推奨: [Ready/軽微な修正が必要/修正が必要/要再作業]
+- 目的適合性: [目的を達成している/過不足あり（詳細は所見を参照）]
 
 ## 所見
 

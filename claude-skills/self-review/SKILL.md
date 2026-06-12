@@ -53,9 +53,15 @@ git diff --name-only HEAD
 
 ### Step 3: レビュー実行
 
-[../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビュー（4サブエージェント）と妥当性検証を実行する。
+まず変更の目的を把握する:
+
+- 現在のブランチにPRがあれば `gh pr view --json title,body` の内容から要約する
+- なければコミットメッセージ（`git log <base>..HEAD --oneline`）とブランチ名から要約する
+
+[../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビュー（5サブエージェント）と妥当性検証を実行する。
 
 - **作業ディレクトリ**: 現在のリポジトリルート
+- **変更の目的**: 上記でまとめた要約を渡す
 
 ### Step 4: 所見の提示と選択
 
