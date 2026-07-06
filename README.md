@@ -5,7 +5,7 @@
 ## セットアップ
 
 ```bash
-./setup.sh
+./setup_mac.sh
 ```
 
 ## 内容
