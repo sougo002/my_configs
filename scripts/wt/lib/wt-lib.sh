@@ -115,8 +115,8 @@ find_orphan_stacks_for_repo() {
 
 # Echo a default COMPOSE_PROJECT_NAME for the given path, combining the repo
 # name and the worktree directory name so that worktrees with the same basename
-# across different repos (e.g. my-app-algo/.claude/worktrees/feat-x vs
-# my-app-ai-widget/.claude/worktrees/feat-x) do not collide.
+# across different repos (e.g. my-app-api/.claude/worktrees/feat-x vs
+# my-app-web/.claude/worktrees/feat-x) do not collide.
 #
 # Format:
 #   <repo-basename>-<cwd-basename>   when cwd is a non-main worktree
