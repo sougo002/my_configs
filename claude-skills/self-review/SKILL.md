@@ -1,7 +1,7 @@
 ---
 name: self-review
 description: 現在のブランチの変更をセルフレビューし、発見した問題を自動修正・コミットします。コミット前のセルフチェックに使用。
-allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr view *), Bash(git status*), Bash(git fetch *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git branch*), Task, AskUserQuestion, Skill
+allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr view *), Bash(git status*), Bash(git fetch *), Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git branch*), Task, AskUserQuestion, Skill(deslop)
 ---
 
 # セルフレビュースキル
@@ -16,6 +16,7 @@ allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr 
 
 - `--base <branch>`: ベースブランチを指定（デフォルト: `development`）
 - `--no-fix`: レビューのみ行い、修正は行わない（所見の表示で終了）
+- `--deep`: REVIEW-PROCESS の「深掘りモード」を有効化する（該当サブエージェントに厳格 rubric を適用）
 
 ## ワークフロー
 
@@ -62,6 +63,13 @@ git diff --name-only HEAD
 
 - **作業ディレクトリ**: 現在のリポジトリルート
 - **変更の目的**: 上記でまとめた要約を渡す
+- **深掘りモード**: `--deep` が指定されている場合は有効化する
+
+#### AIコード slop 検出（deslop）
+
+並列レビューと並行して、`Skill` ツールで `deslop` を実行し、今回のブランチで混入した AI 生成コードの slop（不要なコメント、信頼できるパスへの過剰な try/catch・防御的チェック、型回避のための `any` キャスト、早期returnで簡素化すべき深いネスト等）を検出する。
+
+deslop が提案する除去は**自動適用せず**、検証済み所見と同じく Step 4 の一覧に載せ、ユーザー選択→ Step 5 で修正する（スコープガード内に限る）。挙動を変える変更は行わない。
 
 ### Step 4: 所見の提示と選択
 

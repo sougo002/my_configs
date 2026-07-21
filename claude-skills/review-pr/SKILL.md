@@ -8,19 +8,24 @@ allowed-tools: Read, Grep, Glob, Bash, Task, Skill
 
 **出力は常に日本語で行う。**
 
+このスキルはレビューのみを行い、コードの修正は行わない。
+
 ## 入力形式
 
 以下のいずれかを引数として受け取る:
 
 1. **PR URL**: `https://github.com/<owner>/<repo>/pull/<number>`
-2. **リポジトリ名:ブランチ名**: `my-app:feature/add-auth` or `my-app-algo:feature/add-auth`
-3. **複数リポジトリ**（スペース区切り）: `my-app:feature/x my-app-algo:feature/x`
+2. **リポジトリ名:ブランチ名**: `my-app:feature/add-auth` or `my-app-api:feature/add-auth`
+3. **複数リポジトリ**（スペース区切り）: `my-app:feature/x my-app-api:feature/x`
 
 ### オプション
 
 引数の末尾に `re-review` を付与すると、既存レポートの有無にかかわらず Step 0 から全ステップを再実行する。
 
-例: `/review-pr https://github.com/OWNER/my-app/pull/123 re-review`
+引数の末尾に `deep` を付与すると、REVIEW-PROCESS の「深掘りモード」を有効化する（該当サブエージェントに厳格 rubric を適用）。
+
+例: `/review-pr https://github.com/OWNER/REPO/pull/123 re-review`
+例: `/review-pr my-app:feature/add-auth deep`
 
 PR URLの場合は `gh pr view <url> --json headRefName,baseRefName,headRepository` でブランチ名・ベースブランチ・リポジトリを取得する。
 
@@ -64,15 +69,17 @@ workspace=$(dirname "$repo_root")
 各リポジトリに対して、ブランチ名の `/` を `--` に置換した名前（`<safe-branch>`）を使い、
 `<workspace>/pr-review/worktrees/<repo>--<safe-branch>` にworktreeを作成する。
 
-例: リポジトリ `my-app-algo`、ブランチ `feature/add-auth`
-→ `<workspace>/pr-review/worktrees/my-app-algo--feature--add-auth`
+例: リポジトリ `my-app-api`、ブランチ `feature/add-auth`
+→ `<workspace>/pr-review/worktrees/my-app-api--feature--add-auth`
 
 ```bash
 cd <workspace>/<repo>
 git fetch origin <branch>
 safe_branch=$(echo "<branch>" | sed 's|/|--|g')
 worktree_path="<workspace>/pr-review/worktrees/<repo>--$safe_branch"
-git worktree add "$worktree_path" origin/<branch>
+if [ ! -d "$worktree_path" ]; then
+  git worktree add -b "<branch>" "$worktree_path" origin/<branch>
+fi
 ```
 
 ### Step 1: PR目的の理解（メインエージェント）
@@ -121,32 +128,16 @@ git diff <base>...HEAD                 # diff（ファイル単位で構造化�
 
 - **作業ディレクトリ**: worktreeのパス
 - **変更の目的**: Step 1 でまとめたサマリーを渡す
+- **深掘りモード**: `deep` オプションが指定されている場合は有効化する
 
 ### Step 5: 統合（メインエージェント）
 
 検証済みの指摘のみを統合し、出力形式に従ってレビュー結果を生成する。
 
-### Step 6: Worktree削除
+### Step 6: 処理フロー全体像の出力
 
-レビュー完了後、worktreeを削除するかユーザーに確認する。
-ユーザーがそのまま対応する可能性があるため、**確認なしに削除してはならない**。
-
-worktreeのパスを提示し、削除するか残すかを尋ねる:
-
-```
-レビューが完了しました。worktreeを削除しますか？
-パス: <workspace>/pr-review/worktrees/<repo>--<safe-branch>
-（そのまま対応する場合は残すことができます）
-```
-
-ユーザーが削除を承認した場合のみ実行:
-
-```bash
-cd <workspace>/<repo>
-git worktree remove "<workspace>/pr-review/worktrees/<repo>--$safe_branch"
-```
-
-複数リポジトリの場合は全てのworktreeについて確認する。
+レビュー結果の提示後、今回の変更が組み込まれる処理フローの全体像を概略で出力する。
+変更箇所がその処理フローのどこに位置するかが分かるようにする。
 
 ## 出力形式
 
@@ -192,4 +183,5 @@ git worktree remove "<workspace>/pr-review/worktrees/<repo>--$safe_branch"
 - 変更のコンテキストと意図を考慮する
 - 建設的で実行可能なフィードバックを提供する
 - 所見は重大度順に優先度付けする
-- worktreeの作成・削除に失敗した場合はユーザーに報告する
+- worktreeの作成に失敗した場合はユーザーに報告する
+- **レビュー結果（Step 5-6）を出力したらそこで終了する。「PRを修正しますか？」等の修正・次アクションの提案や、締めの問いかけは行わない。**
