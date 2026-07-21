@@ -10,7 +10,9 @@ allowed-tools: Read, Grep, Glob, Bash(make lint*), Bash(make test*), Bash(gh pr 
 
 ## 入力形式
 
-**PR URL** を引数として受け取る: `/fix-reviews https://github.com/OWNER/my-app-ai-widget/pull/123`
+**PR URL** を引数として受け取る: `/fix-reviews https://github.com/OWNER/REPO/pull/123`
+
+引数を省略した場合は、**現ブランチに紐づく PR に自動でフォールバック**する: `/fix-reviews`
 
 PR URL 以外（PR番号、ブランチ名等）を指定した場合は、手動でコメントを取得する。
 
@@ -18,11 +20,15 @@ PR URL 以外（PR番号、ブランチ名等）を指定した場合は、手�
 
 ### Step 1: コメントの取得
 
-PR URL が引数として渡された場合は、スクリプトでコメントを取得する:
+スクリプトでコメントを取得する。引数を省略した場合は現ブランチの PR に自動フォールバックする:
 
 ```bash
 python3 ${CLAUDE_SKILL_DIR}/scripts/fetch_comments.py $ARGUMENTS
 ```
+
+- 引数あり（PR URL）: その PR のコメントを取得する
+- 引数なし: 現ブランチに紐づく PR を `gh pr view` で解決してコメントを取得する
+- 現ブランチに PR が無い場合: スクリプトがその旨を表示して終了する。ユーザーに PR URL の指定か PR 作成を促す
 
 PR URL 以外の入力、またはスクリプト実行に失敗した場合は、以下で手動取得する:
 

@@ -3,9 +3,12 @@
 GraphQL API を使い、resolved されたスレッドは除外する。
 PR 著者のコメントは除外する（セルフコメントは対応不要なため）。
 
+引数を省略した場合は、現ブランチに紐づく PR を自動解決してフォールバックする。
+
 Usage:
     python fetch_comments.py <PR_URL>
-    python fetch_comments.py https://github.com/OWNER/my-app-ai-widget/pull/123
+    python fetch_comments.py https://github.com/OWNER/REPO/pull/123
+    python fetch_comments.py            # 現ブランチのPRにフォールバック
 """
 
 import json
@@ -22,6 +25,18 @@ def parse_pr_url(url: str) -> tuple[str, str, str]:
     if not match:
         return "", "", ""
     return match.group(1), match.group(2), match.group(3)
+
+
+def resolve_current_branch_pr_url() -> str:
+    """現ブランチに紐づく PR の URL を取得する。無ければ空文字を返す。"""
+    result = subprocess.run(
+        ["gh", "pr", "view", "--json", "url", "--jq", ".url"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
 
 
 def fetch_threads_graphql(
@@ -214,17 +229,27 @@ def format_output(
 
 
 def main():
-    if len(sys.argv) < 2 or not sys.argv[1].strip():
-        print("PR URL が指定されていません。Claude が手動でコメントを取得します。")
-        sys.exit(0)
+    arg = sys.argv[1].strip() if len(sys.argv) >= 2 else ""
 
-    arg = sys.argv[1].strip()
-    owner, repo, pr_num = parse_pr_url(arg)
-
-    if not owner:
-        print(f"URL をパースできませんでした: {arg}")
-        print("Claude が手動でコメントを取得します。")
-        sys.exit(0)
+    if arg:
+        owner, repo, pr_num = parse_pr_url(arg)
+        if not owner:
+            print(f"URL をパースできませんでした: {arg}")
+            print("Claude が手動でコメントを取得します。")
+            sys.exit(0)
+    else:
+        # 引数なし → 現ブランチに紐づく PR にフォールバック
+        url = resolve_current_branch_pr_url()
+        if not url:
+            print("現ブランチに紐づく PR が見つかりませんでした。")
+            print("PR URL を指定するか、PR を作成してから再実行してください。")
+            sys.exit(0)
+        owner, repo, pr_num = parse_pr_url(url)
+        if not owner:
+            print(f"PR URL をパースできませんでした: {url}")
+            sys.exit(0)
+        print(f"(現ブランチの PR にフォールバック: {url})")
+        print()
 
     threads, reviews, pr_author = fetch_threads_graphql(owner, repo, pr_num)
     print(format_output(threads, reviews, pr_author, owner, repo, pr_num))
