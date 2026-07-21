@@ -16,6 +16,9 @@ target/
 # macOS
 .DS_Store
 
+# Python
+__pycache__/
+
 # Karabiner auto-generated
 dotfiles/.config/karabiner/automatic_backups/
 dotfiles/.config/karabiner/assets/
