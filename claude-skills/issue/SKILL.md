@@ -1,13 +1,14 @@
 ---
 name: issue
-description: 会話を元にissueをドラフトし、ユーザー確認後に `gh issue create` で作成する
-allowed-tools: Read, Bash(gh issue *), Bash(gh repo view *), Bash(gh api *), AskUserQuestion
-disable-model-invocation: true
+description: 会話を元にissueをドラフトし、ユーザー確認後に作成する。既存issueの編集・コメント投稿/追記・sub-issue化・アサイン・Project追加・sub-issue一覧もできる汎用のGitHub issue操作スキル。issueを作りたい/編集したい/コメントしたい/sub-issue化したい/アサインしたい/Projectに追加したい場面で使う。
+allowed-tools: Read, AskUserQuestion, Bash(gh issue list *), Bash(gh repo view *), Bash(python3 ~/.claude/skills/issue/scripts/create.py *), Bash(python3 ~/.claude/skills/issue/scripts/edit.py *), Bash(python3 ~/.claude/skills/issue/scripts/comment.py *), Bash(python3 ~/.claude/skills/issue/scripts/link_subissue.py *), Bash(python3 ~/.claude/skills/issue/scripts/assign.py *), Bash(python3 ~/.claude/skills/issue/scripts/add_to_project.py *), Bash(python3 ~/.claude/skills/issue/scripts/list_subissues.py *)
 ---
 
-# Issue 作成スキル
+# Issue 操作スキル
 
 **出力は常に日本語で行う。**
+
+リポジトリ非依存の汎用 issue 操作スキル。会話からの作成のほか、編集・sub-issue化・アサイン・Project追加を `scripts/` 配下の python script で行う。
 
 ## 入力形式
 
@@ -68,21 +69,95 @@ gh issue list --search "<キーワード>" --state all --limit 10
 
 ### Step 4: 投稿
 
-ユーザーから明示的なOKを得たら作成する。HEREDOCで本文指定:
+ユーザーから明示的なOKを得たら作成する。本文は一時ファイルに書き出し `create.py` に渡す（エスケープ問題を回避）:
 
 ```bash
-gh issue create \
+python3 ~/.claude/skills/issue/scripts/create.py \
+  --repo OWNER/REPO \
   --title "<タイトル>" \
-  --body "$(cat <<'EOF'
-<本文>
-EOF
-)"
+  --body-file /tmp/issue_body.md
 ```
+
+作成結果は `{"number":.., "url":..}` の JSON で返る。
 
 ### Step 5: 結果報告
 
-作成された Issue URL をユーザーに報告
+作成された Issue URL をユーザーに報告する。
+
+## 操作リファレンス
+
+すべて `~/.claude/skills/issue/scripts/` 配下。本文は `--body-file` か stdin で渡す。
+
+### 作成（create.py）
 
 ```bash
-gh issue view <issue番号> --json url,number,title --jq '{number, title, url}'
+python3 ~/.claude/skills/issue/scripts/create.py \
+  --repo OWNER/REPO --title "タイトル" --body-file body.md \
+  [--label ラベル]... [--assignee ユーザー]... \
+  [--parent 親issue番号] \
+  [--add-to-project --project-owner OWNER --project-number 番号]
 ```
+
+- `--parent` 指定で本文先頭に `Parent: #N` を付加（sub-issue 化）。
+- `--add-to-project` 指定時のみ作成後に Project へ追加。
+
+### 編集（edit.py）
+
+```bash
+python3 ~/.claude/skills/issue/scripts/edit.py \
+  --repo OWNER/REPO --number 123 [--title "新タイトル"] [--body-file new_body.md]
+```
+
+### コメント投稿 / 追記（comment.py）
+
+```bash
+# 新規投稿（{"id":.., "url":..} を返す）
+python3 ~/.claude/skills/issue/scripts/comment.py \
+  --repo OWNER/REPO --number 123 --body-file body.md
+
+# 既存コメントを差し替え
+python3 ~/.claude/skills/issue/scripts/comment.py \
+  --repo OWNER/REPO --comment-id 456 --body-file body.md
+
+# 既存コメントの末尾に追記
+python3 ~/.claude/skills/issue/scripts/comment.py \
+  --repo OWNER/REPO --comment-id 456 --append --body-file add.md
+```
+
+新規投稿で返る `id` を控えておけば、以降は `--comment-id` で同じコメントを更新・追記できる。
+
+### sub-issue 紐付け（link_subissue.py）
+
+```bash
+python3 ~/.claude/skills/issue/scripts/link_subissue.py \
+  --repo OWNER/REPO --parent 100 --child 101 --child 102
+```
+
+GraphQL で nodeID を解決し `addSubIssue` を実行する。
+
+### アサイン（assign.py）
+
+```bash
+python3 ~/.claude/skills/issue/scripts/assign.py \
+  --repo OWNER/REPO --number 123 [--number 124]... --assignee ユーザー
+```
+
+### Project 追加（add_to_project.py）
+
+```bash
+python3 ~/.claude/skills/issue/scripts/add_to_project.py \
+  --owner OWNER --project-number 番号 --url ISSUE_URL [--url ...]
+```
+
+冪等。Project 操作には `project` スコープが必要。
+
+### sub-issue 一覧（list_subissues.py）
+
+```bash
+python3 ~/.claude/skills/issue/scripts/list_subissues.py --repo OWNER/REPO --parent 100
+```
+
+## 注意事項
+
+- 本文は file・stdin で渡し、HEREDOC のエスケープ問題を避ける。
+- 複数 issue の作成・アサインは可能な限り並列実行する。
