@@ -161,6 +161,27 @@ setup_claude_skills() {
 }
 
 # ==============================================================================
+# External Skills
+# 依存repositoryの一覧とスキルのリンク先は external-skills/ 配下のスクリプトで管理する
+# （repos.txt / skills.txt / clone.sh / link.sh）
+# ==============================================================================
+
+setup_external_skills() {
+  local external_skills_dir="$SCRIPT_DIR/external-skills"
+
+  if [[ ! -d "$external_skills_dir" ]]; then
+    info "No external-skills directory found"
+    return 0
+  fi
+
+  info "Cloning external skill repositories..."
+  bash "$external_skills_dir/clone.sh"
+
+  info "Linking external skills..."
+  bash "$external_skills_dir/link.sh"
+}
+
+# ==============================================================================
 # Standalone Scripts Setup
 # scripts/<name>/<name> を ~/.local/bin/<name> にリンクしてPATHから呼べるようにする
 # ==============================================================================
@@ -214,6 +235,7 @@ main() {
   setup_git_prompt
   setup_macos
   setup_claude_skills
+  setup_external_skills
   setup_scripts
   setup_tools
 

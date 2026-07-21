@@ -1,0 +1,10 @@
+# ~/.claude/skills にリンクする外部スキル一覧
+# format: skill_name|repo_name|relative_path
+# repo_name は "owner/repo" 形式（ghqのgithub.com配下のパスに対応する）
+
+deslop|cursor/plugins|cursor-team-kit/skills/deslop
+make-pr-easy-to-review|cursor/plugins|cursor-team-kit/skills/make-pr-easy-to-review
+thermo-nuclear-review|cursor/plugins|thermos/skills/thermo-nuclear-review
+thermo-nuclear-code-quality-review|cursor/plugins|thermos/skills/thermo-nuclear-code-quality-review
+typescript-best-practices|cursor/plugins|pstack/skills/typescript-best-practices
+unslop|cursor/plugins|pstack/skills/unslop

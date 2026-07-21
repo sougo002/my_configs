@@ -1,0 +1,4 @@
+# 外部スキルを提供するgit repositoryの一覧
+# ghq get でcloneする
+
+https://github.com/cursor/plugins.git
