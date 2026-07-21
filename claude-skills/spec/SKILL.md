@@ -1,7 +1,7 @@
 ---
 name: spec
 description: 対話で仕様を言語化する。
-allowed-tools: AskUserQuestion
+allowed-tools: AskUserQuestion, Skill(issue)
 disable-model-invocation: true
 ---
 
@@ -16,9 +16,11 @@ disable-model-invocation: true
    - 機能の目的・スコープ・スコープ外
    - エッジケース・前提条件
    - 影響範囲（リポジトリ・想定変更ファイル）
-   - 設計方針の概要・テスト方針
 3. 擦り合わせが落ち着いたら **言語化された仕様** を箇条書きで提示する
-4. `AskUserQuestion` で「この仕様で確定 / 修正する / 中止する」の合意を取る
+4. `AskUserQuestion` で「この仕様で確定 / issue にまとめる / 修正する / 中止する」の合意を取る
+   - 確定なら 5 へ
+   - issue にまとめるなら 6 へ
    - 修正なら 1〜3 に戻る
    - 中止なら抜ける
 5. 確定した仕様を最終出力として残して終了する
+6. `Skill` ツールで `/issue` を起動し、言語化した仕様を題材として渡して issue 化する。作成された issue の URL を最終出力に残して終了する
