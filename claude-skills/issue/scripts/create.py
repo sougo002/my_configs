@@ -10,7 +10,7 @@ Usage:
     echo "本文" | python3 ~/.claude/skills/issue/scripts/create.py \
         --repo OWNER/REPO --title "T" --label bug --assignee octocat
 
-    # sub-issue にする（本文先頭に "Parent: #100" を付加）
+    # sub-issue にする（作成後に addSubIssue で親に紐付け）
     python3 ~/.claude/skills/issue/scripts/create.py \
         --repo OWNER/REPO --title "T" --body-file b.md --parent 100
 
@@ -23,7 +23,7 @@ Usage:
 import argparse
 import json
 
-from _common import add_to_project, read_body, run_gh, validate_repo
+from _common import add_sub_issue, add_to_project, get_issue_id, read_body, run_gh, validate_repo
 
 
 def main() -> None:
@@ -33,7 +33,7 @@ def main() -> None:
     p.add_argument("--body-file", help="本文ファイル。未指定なら stdin を読む")
     p.add_argument("--label", action="append", default=[], help="ラベル（複数可）")
     p.add_argument("--assignee", action="append", default=[], help="アサイン先（複数可）")
-    p.add_argument("--parent", type=int, help="親issue番号。本文先頭に 'Parent: #N' を付加")
+    p.add_argument("--parent", type=int, help="親issue番号。作成後に addSubIssue で親に紐付ける")
     p.add_argument("--add-to-project", action="store_true", help="作成後に Project へ追加")
     p.add_argument("--project-owner", help="--add-to-project 時の owner")
     p.add_argument("--project-number", help="--add-to-project 時の project 番号")
@@ -41,8 +41,6 @@ def main() -> None:
 
     repo = validate_repo(args.repo)
     body = read_body(args) or ""
-    if args.parent:
-        body = f"Parent: #{args.parent}\n\n{body}"
 
     gh_args = ["issue", "create", "--repo", repo, "--title", args.title, "--body", body]
     for label in args.label:
@@ -53,6 +51,9 @@ def main() -> None:
     # gh issue create は作成した issue の URL を出力する
     url = run_gh(gh_args).strip().splitlines()[-1].strip()
     number = int(url.rstrip("/").split("/")[-1])
+
+    if args.parent:
+        add_sub_issue(get_issue_id(repo, args.parent), get_issue_id(repo, number))
 
     if args.add_to_project:
         if not (args.project_owner and args.project_number):

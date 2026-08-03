@@ -10,7 +10,7 @@ Usage:
 
 import argparse
 
-from _common import graphql, validate_repo
+from _common import add_sub_issue, graphql, validate_repo
 
 
 def main() -> None:
@@ -38,12 +38,7 @@ def main() -> None:
 
     for i, n in enumerate(args.child):
         child = repo[f"c{i}"]
-        mutation = f"""mutation {{
-          addSubIssue(input: {{issueId: "{parent_id}", subIssueId: "{child['id']}"}}) {{
-            subIssue {{ number title }}
-          }}
-        }}"""
-        graphql(mutation)
+        add_sub_issue(parent_id, child["id"])
         print(f"linked #{child['number']} ({child['title']}) -> parent #{args.parent}")
 
 

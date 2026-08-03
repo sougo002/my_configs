@@ -98,7 +98,7 @@ python3 ~/.claude/skills/issue/scripts/create.py \
   [--add-to-project --project-owner OWNER --project-number 番号]
 ```
 
-- `--parent` 指定で本文先頭に `Parent: #N` を付加（sub-issue 化）。
+- `--parent` 指定で作成後に GraphQL `addSubIssue` を実行し、親issueの sub-issue として紐付ける。
 - `--add-to-project` 指定時のみ作成後に Project へ追加。
 
 ### 編集（edit.py）

@@ -48,3 +48,25 @@ def add_to_project(owner: str, project_number: str, urls: list[str]) -> None:
     """issue URL を GitHub Project に追加する（冪等）。"""
     for url in urls:
         run_gh(["project", "item-add", str(project_number), "--owner", owner, "--url", url])
+
+
+def get_issue_id(repo: str, number: int) -> str:
+    """issue の GraphQL nodeID を取得する。"""
+    owner, name = repo.split("/")
+    query = f"""
+    {{
+      repository(owner: "{owner}", name: "{name}") {{
+        issue(number: {number}) {{ id }}
+      }}
+    }}"""
+    return graphql(query)["data"]["repository"]["issue"]["id"]
+
+
+def add_sub_issue(parent_id: str, child_id: str) -> None:
+    """addSubIssue mutation を実行し、child を parent の sub-issue として紐付ける。"""
+    mutation = f"""mutation {{
+      addSubIssue(input: {{issueId: "{parent_id}", subIssueId: "{child_id}"}}) {{
+        subIssue {{ number title }}
+      }}
+    }}"""
+    graphql(mutation)
