@@ -1,7 +1,7 @@
 ---
 name: wt-dev
 description: worktree作成→ドキュメント化→設計→実装→セルフレビュー2回までユーザー介入なしで完走するハンズオフ開発スキル。
-allowed-tools: Read, Grep, Glob, Edit, Write, Task, EnterWorktree, ExitWorktree, Bash(git fetch*), Bash(git status*), Bash(git diff*), Bash(git log*), Bash(git rev-parse*), Bash(git branch*), Bash(git add*), Bash(git commit*), Bash(make lint*), Bash(make test*), Bash(mkdir -p*), Bash(ls*), Bash(test -f*), Bash(ln -s*), Bash(cp*), Skill(self-review)
+allowed-tools: Read, Grep, Glob, Edit, Write, Task, EnterWorktree, ExitWorktree, Bash(git fetch*), Bash(git status*), Bash(git diff*), Bash(git log*), Bash(git rev-parse*), Bash(git branch*), Bash(git add*), Bash(git commit*), Bash(make lint*), Bash(make test*), Bash(mkdir -p*), Bash(ls*), Bash(test -f*), Bash(ln -s*), Bash(cp*), Bash(bash ~/.claude/skills/wt-start/apply-deps.sh*), Skill(self-review)
 ---
 
 # ハンズオフ開発スキル
@@ -15,9 +15,9 @@ allowed-tools: Read, Grep, Glob, Edit, Write, Task, EnterWorktree, ExitWorktree,
 1. **対象リポジトリの中に cwd があることを確認する**。`EnterWorktree` は git リポジトリ内で呼ぶ必要がある。cwd がリポジトリのルートでない場合は対象リポジトリに入ってから進める。
 2. **`EnterWorktree({name: "<type>/<簡潔な説明>"})` で worktree を作成する**。name は作業内容から決める。これでセッションの cwd が worktree に切り替わり、以降の Bash/Read/Edit は worktree 上で走る。ブランチも `<type>/<名前>` で直接作られるため `git branch -m` でのリネームは不要。
    - 既定の base ref は `fresh` で `origin/<デフォルトブランチ>` 起点。デフォルトブランチが統合先と異なる場合のみ `worktree.baseRef` 設定で調整する。
-3. **依存ファイルを自前で補完する**。`EnterWorktree` は素の git worktree を作るだけで、`.gitignore` 対象の `.venv` / `node_modules` / `.env` / 認証情報などは持ち込まれない。`~/.claude/memory/worktree-deps.conf` を Read し、対象リポジトリ名（元リポジトリのディレクトリ名）の `[<project名>]` セクションを探す。
-   - 各行 `link <relpath>` は symlink（`ln -s <元リポジトリ>/<relpath> <worktree>/<relpath>`）、`copy <relpath>` は cp で補完する。いずれも親ディレクトリが無ければ `mkdir -p` してから、既に存在する場合はスキップする。
-   - 元リポジトリのパスは `git worktree list` の先頭エントリ。対象セクションが conf に無い場合は補完せず、その旨を報告して進む。
+3. **依存ファイルを補完する**。`EnterWorktree` は素の git worktree を作るだけで、`.gitignore` 対象の `.venv` / `node_modules` / `.env` / 認証情報などは持ち込まれない。`bash ~/.claude/skills/wt-start/apply-deps.sh` を実行し、対象リポジトリの `.cursor/worktrees.json` にある `setup-worktree-unix`（なければ `setup-worktree`）を適用する。
+   - `DONE:<name>` なら完了。
+   - `NO_CONF` / `NO_SETUP` / `INVALID_CONF:<detail>` の場合は補完せず、その旨を報告して進む。
    - **コンテナ起動（`wt watch`）はしない**。`make lint` / `make test` はコンテナ無しで通る前提。コンテナが必要になったらユーザーが自分で `/wt-start` を実行する。
 
 ### Step 2: 記録先の決定
