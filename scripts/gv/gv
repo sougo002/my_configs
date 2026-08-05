@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# gv — fuzzy pick a ghq-managed repository path.
+#
+# Interactive mode is handled by the gv zsh function.
+# This script is for non-interactive filter mode (agents/scripts).
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+PREVIEW="$SCRIPT_DIR/gv-fzf-preview"
+
+usage() {
+  cat <<'EOF'
+gv — fuzzy pick a ghq-managed repository
+
+Usage:
+  gv                    Interactive picker (use the zsh function)
+  gv -q QUERY           Filter mode (prints all matches)
+  gv -q QUERY -1        Filter mode (prints best match only)
+
+Examples:
+  gv -q my_configs -1
+EOF
+}
+
+query=""
+pick_one=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -q|--filter)
+      [[ $# -ge 2 ]] || { echo "missing query" >&2; exit 1; }
+      query="$2"
+      shift 2
+      ;;
+    -1|--first)
+      pick_one=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z "$query" ]]; then
+  usage >&2
+  exit 1
+fi
+
+repos=$(ghq list -p 2>/dev/null || true)
+if [[ -z "$repos" ]]; then
+  echo "no ghq repositories found" >&2
+  exit 1
+fi
+
+fzf_args=(--filter "$query")
+if $pick_one; then
+  printf '%s\n' "$repos" | fzf "${fzf_args[@]}" | head -1
+else
+  printf '%s\n' "$repos" | fzf "${fzf_args[@]}"
+fi

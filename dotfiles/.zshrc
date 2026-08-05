@@ -67,6 +67,33 @@ preexec() {
 }
 
 # ==============================================================================
+# ghq
+# ==============================================================================
+
+# `gv` opens fzf; typing there filters in real time.
+gv() {
+  if (( $# > 0 )) && [[ "$1" == "-q" || "$1" == "--filter" ]]; then
+    command gv "$@"
+    return
+  fi
+
+  local bin preview_script dest
+  bin=$(whence -p gv) || return 1
+  preview_script="${bin:h}/gv-fzf-preview"
+
+  dest=$(ghq list -p | fzf \
+    --height 80% \
+    --layout reverse \
+    --border \
+    --prompt 'ghq> ' \
+    --preview "$preview_script {}" \
+    --preview-window 'right:60%:wrap' \
+    --bind 'ctrl-o:execute-silent(bash -c "cd \"{}\" && gh browse" >/dev/null 2>&1)')
+
+  [[ -n "$dest" ]] && cd "$dest"
+}
+
+# ==============================================================================
 # Git Functions
 # ==============================================================================
 
