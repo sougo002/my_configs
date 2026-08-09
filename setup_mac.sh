@@ -158,6 +158,21 @@ setup_macos() {
 }
 
 # ==============================================================================
+# mise Setup
+# 公式のcurl installerで ~/.local/bin/mise に入れる
+# ==============================================================================
+
+setup_mise() {
+  if [[ -x "$HOME/.local/bin/mise" ]]; then
+    info "mise is already installed"
+    return 0
+  fi
+
+  info "Installing mise..."
+  curl -sSfL https://mise.run | sh
+}
+
+# ==============================================================================
 # Claude Code Skills Setup
 # git管理外のスキルを残すため、dotfilesとは別でスキル単位でリンク
 # ==============================================================================
@@ -239,9 +254,12 @@ setup_scripts() {
 
 setup_tools() {
   # mise
-  if command -v mise &>/dev/null; then
+  local mise_bin="$HOME/.local/bin/mise"
+  if [[ -x "$mise_bin" ]]; then
+    # シンボリックリンクしたconfigはtrust情報が無いとmiseに拒否される
+    "$mise_bin" trust "$CONFIG_HOME/mise/config.toml" &>/dev/null || true
     info "Installing mise dependencies..."
-    mise install
+    "$mise_bin" install || warn "mise install failed"
   fi
 }
 
@@ -258,6 +276,7 @@ main() {
   setup_local_configs
   setup_git_prompt
   setup_macos
+  setup_mise
   setup_claude_skills
   setup_external_skills
   setup_scripts
