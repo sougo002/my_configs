@@ -79,7 +79,7 @@ gv() {
 
   local bin preview_script dest
   bin=$(whence -p gv) || return 1
-  preview_script="${bin:h}/gv-fzf-preview"
+  preview_script="${${bin:A}:h}/gv-fzf-preview"
 
   dest=$(ghq list -p | fzf \
     --height 80% \
