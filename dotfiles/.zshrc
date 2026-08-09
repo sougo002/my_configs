@@ -21,9 +21,9 @@ alias resource=". ~/.zshrc"
 alias code-rc="code ~/.zshrc"
 
 # ls (requires: eza)
-alias ls='eza --icons'
-alias ll='eza --icons -lah'
-alias llt='eza --icons -lah -T -L2'
+alias ls='eza --icons=auto'
+alias ll='eza --icons=auto -lah'
+alias llt='eza --icons=auto -lah -T -L2'
 
 # cd
 alias cdhome='cd ~'
