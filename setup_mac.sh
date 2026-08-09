@@ -150,6 +150,15 @@ setup_macos() {
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   fi
 
+  if ! command -v brew &>/dev/null; then
+    if [[ -x /opt/homebrew/bin/brew ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    else
+      warn "brew not found, skipping Homebrew packages"
+      return 0
+    fi
+  fi
+
   # Install from Brewfile
   if [[ -f "$SCRIPT_DIR/Brewfile" ]]; then
     info "Installing Homebrew packages..."
