@@ -25,3 +25,5 @@
 	editor = code --wait
 [ghq]
 	root = ~/.ghq
+[include]
+	path = ~/.gitconfig.local

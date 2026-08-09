@@ -4,6 +4,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DOTFILES_DIR="$SCRIPT_DIR/dotfiles"
+TEMPLATES_DIR="$DOTFILES_DIR/templates"
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 
@@ -71,6 +72,28 @@ setup_dotfiles() {
       # その他のdotfilesはHOMEに直接リンク
       link_file "$file" "$HOME/$filename"
     fi
+  done
+}
+
+# ==============================================================================
+# Local Config Templates
+# git管理下に置かないマシン固有の設定は *.local に書く
+# ==============================================================================
+
+setup_local_configs() {
+  info "Setting up local config templates..."
+
+  for template in "$TEMPLATES_DIR"/.*.example; do
+    [[ -f "$template" ]] || continue
+
+    local dest="$HOME/$(basename "$template" .example)"
+    if [[ -e "$dest" ]]; then
+      info "Already exists: $dest"
+      continue
+    fi
+
+    cp "$template" "$dest"
+    info "Created: $dest"
   done
 }
 
@@ -232,6 +255,7 @@ main() {
   info "Dotfiles directory: $DOTFILES_DIR"
 
   setup_dotfiles
+  setup_local_configs
   setup_git_prompt
   setup_macos
   setup_claude_skills
