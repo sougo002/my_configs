@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 ## 入力形式
 
-`/wt-start` の後ろに `TARGET` を渡せる（省略可）。worktree のパス、ブランチ名、ディレクトリ名の一部、`main` / `レビュー` など。省略時は Step 0 で cwd と会話から自動判定する。
+`/wt-start` の後ろに `TARGET` を渡せる（省略可）。worktree のパス、ブランチ名、ディレクトリ名の一部、`main` / `レビュー` など。省略時は Step 0 で会話から自動判定する。
 
 ## Step 0: 起動先 worktree の解決
 
@@ -42,10 +42,9 @@ git -C <path> worktree list
 
 次の順で手がかりを使う。
 
-1. cwd が非メイン worktree → そのパスを `$WT`
-2. 会話の直近コンテキストから一意に特定できる worktree
-3. cwd がメイン worktree で上記で決まらない → `$WT=$MAIN`
-4. 一意に決まらない → `git worktree list` の中から最適なものを提示してユーザが選ぶ
+1. 会話の直近コンテキスト（作った / レビューした / 実装した worktree・ブランチ・PR）から特定
+2. それで決まらず、cwd が非メイン worktree ならそのパス。会話と矛盾するなら選ばない
+3. 決まらない → `git worktree list` から候補を出してユーザが選ぶ。直近の PR・ブランチに近いものを先頭にする
 
 ## Step 1: 依存ファイル補完
 
