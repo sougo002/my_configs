@@ -30,6 +30,8 @@ allowed-tools: Read, Grep, Glob, Bash, Task, Skill
 例: `/review-pr my-app:feature/add-auth deep`
 例: `/review-pr my-app:feature/add-auth ux`
 
+複数のオプションは同時に指定できる。適用順は「Step 0 → ... → Step 7（ux）→ Step 8」とする。
+
 PR URLの場合は `gh pr view <url> --json headRefName,baseRefName,headRepository` でブランチ名・ベースブランチ・リポジトリを取得する。
 
 ## ベースブランチ
@@ -66,11 +68,11 @@ workspace=$(dirname "$repo_root")
 04-runtime-check.md         実行確認の結果と未実施項目（Step 6）
 05-ux-persona.md            UX ペルソナ検証
 06-summary.md               最終サマリー・評価・所見
-artifacts/<persona>/     ペルソナ検証の成果物（スクリーンショット等）
 ```
 
 - レビュー結果を 1 ファイルにまとめず、作業過程をファイルとして残す
-- 専門観点（セキュリティ詳細、API 契約の突合など）を追加で走らせた場合は、02 の後に番号を振って追加する（例: `02-1-security.md`、`02-2-api-contract.md`）。
+- 専門観点（セキュリティ詳細、API 契約の突合など）を追加で走らせた場合は、02 の後に番号を振って追加する（例: `02-1-security.md`、`02-2-api-contract.md`）。追加するかどうかは、メインエージェントが Step 3-4 の結果を見て必要と判断した場合のみ行う。
+- 複数リポジトリの場合も `06-summary.md` は 1 つだけ作成し、先頭に指定したリポジトリのレポートディレクトリに置く。リポジトリ別の節（`## <repo>`）を設け、その中に変更規模・評価・所見を書く。
 
 ## ワークフロー
 
@@ -82,7 +84,7 @@ artifacts/<persona>/     ペルソナ検証の成果物（スクリーンショ�
 2. `<workspace>/pr-review/reports/<repo>--<safe-branch>/` ディレクトリの存在を確認する
 3. 判定:
    - **`re-review` が指定されている場合**: 既存ディレクトリを無視し、Step 0 から全ステップを再実行する。既存ファイルは上書きする
-   - **ディレクトリが存在する場合**: Step 2〜3 はスキップし、**Step 4（統合）から開始**する。既存の `02-review-results.md` と `03-validation.md` を Step 4 の入力として読み込む。
+   - **ディレクトリが存在する場合**: Step 2〜4 はスキップし、**Step 5（統合）から開始**する。既存の `02-review-results.md` と `03-validation.md` を Step 5 の入力として読み込む。
      - PRの目的と変更内容は既存の `00-overview.md` を再利用し、無ければ Step 1 を実行して取得する。
      - 対応するworktreeが存在すればそのまま使用し、なければ Step 0 のみ実行してworktreeを準備する
    - **ディレクトリが存在しない場合**: Step 0 から通常どおり開始する
@@ -100,10 +102,16 @@ cd <workspace>/<repo>
 git fetch origin <branch>
 safe_branch=$(echo "<branch>" | sed 's|/|--|g')
 worktree_path="<workspace>/pr-review/worktrees/<repo>--$safe_branch"
-if [ ! -d "$worktree_path" ]; then
+if git worktree list --porcelain | grep -qxF "worktree $worktree_path"; then
+  : # 既存 worktree をそのまま使う
+elif git show-ref --verify --quiet "refs/heads/<branch>"; then
+  git worktree add "$worktree_path" "<branch>"   # 同名のローカルブランチが既にあればそれを使う
+else
   git worktree add -b "<branch>" "$worktree_path" origin/<branch>
 fi
 ```
+
+既存 worktree の判定は `git worktree list` で行う。同名のローカルブランチが既にある場合は、`-b` で新規作成せず既存ブランチを使って worktree を作成する。
 
 ### Step 1: PR目的の理解（メインエージェント）
 
@@ -162,9 +170,8 @@ git diff <base>...HEAD                 # diff（ファイル単位で構造化�
 
 複数リポジトリの場合は、各worktreeで差分を取得し、リポジトリ名付きで結合する。
 
-取得した変更ファイルを観点（画面・API・権限・DB・テスト・設定など）で分類し、`01-file-classification.md` に書く。1 ファイルが複数の分類に入ってよい。
+取得した変更ファイルを観点（画面・API・権限・DB・テスト・設定など）で分類し、`01-file-classification.md` に書く。1 ファイルが複数の分類に入ってよい。`deep` オプションが指定された場合のみ作成する。
 あわせて、フロントエンド差分の有無を REVIEW-PROCESS の「フロントエンド差分の検出」の拡張子条件で判定する。
-
 ### Step 3-4: レビュー実行と妥当性検証
 
 [../review/REVIEW-PROCESS.md](../review/REVIEW-PROCESS.md) の手順に従い、並列レビューと妥当性検証を実行する。
@@ -174,6 +181,7 @@ git diff <base>...HEAD                 # diff（ファイル単位で構造化�
 - **深掘りモード**: `deep` オプションが指定されている場合は有効化する
 
 一次結果は `02-review-results.md` に、妥当性検証の判定は `03-validation.md` に書く。
+妥当性検証はメインエージェントが行う。サブエージェントの指摘をそのまま採用しない。
 
 ### Step 5: 統合（メインエージェント）
 
@@ -187,17 +195,18 @@ git diff <base>...HEAD                 # diff（ファイル単位で構造化�
 - 各サブエージェントには確認内容・確認手順・判定基準を渡す。
 - 結果は `04-runtime-check.md` に「実施結果」と「未実施（理由）」を分けて書く。
   - 理由無く未実施にしない。検証できる範囲は検証する
+- 確定した採用・却下の判定はメインエージェントが行い、`03-validation.md` に追記したうえで、`06-summary.md` の所見に反映する。実行確認の最終判定もメインエージェントが行う。
 
 ### Step 7: UX ペルソナ検証
 
-- ペルソナごとに、ブラウザ操作が可能なサブエージェントを 1 つずつ起動する。
+- ブラウザ操作ができるサブエージェント種別を使い、ペルソナごとに 1 つずつ起動する。
 - ペルソナには役割・業務・操作の目的・見て欲しい箇所だけを与え、「不満点」「機能要望」「良かった点」を画面上の動作で報告させる。
 - 成果物があれば `ux-artifacts/<persona>/` に保存する。
-- 報告は妥当性検証と同じ基準で採否を判定してから `06-ux-persona.md` に統合する。このPRと関係のない不満は含めない。
+- 報告の採否はメインエージェントが妥当性検証と同じ基準で判定してから `05-ux-persona.md` に統合する。このPRと関係のない不満は含めない。
 
 ### Step 8: 処理フロー全体像の出力
 
-レビュー結果の提示後、今回の変更が組み込まれる処理フローの全体像を概略で出力する。
+レビュー結果の提示後、今回の変更が組み込まれる処理フローの全体像を概略で出力する。出力先は `06-summary.md` の末尾に「処理フロー」節として追記する。
 変更箇所がその処理フローのどこに位置するかが分かるようにする。
 
 ## 出力形式（06-summary.md）
