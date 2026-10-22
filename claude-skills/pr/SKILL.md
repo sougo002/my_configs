@@ -1,8 +1,7 @@
 ---
 name: pr
-description: 現ブランチをpushし、PRテンプレートに沿って本文を書きdraft PRを作成する
+description: 現ブランチを push し、PR テンプレートに沿って本文を書き draft PR を作成する。
 allowed-tools: Read, Skill(make-pr-easy-to-review), Bash(git status*), Bash(git log*), Bash(git diff*), Bash(git push*), Bash(git rev-parse*), Bash(git branch*), Bash(git fetch*), Bash(gh pr *), Bash(gh repo view *)
-disable-model-invocation: true
 ---
 
 # PR 作成スキル

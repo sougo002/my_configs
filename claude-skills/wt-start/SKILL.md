@@ -1,8 +1,7 @@
 ---
 name: wt-start
-description: 指定または推定した worktree に依存ファイルを補完しコンテナを起動する。引数でパス・ブランチ名などを渡せる。
+description: 指定または推定した worktree に依存ファイルを補完しコンテナを起動する。
 allowed-tools: Read, AskUserQuestion, Bash(git rev-parse*), Bash(git worktree*), Bash(git ls-files*), Bash(git status*), Bash(git branch*), Bash(ln -s*), Bash(cp*), Bash(mkdir -p*), Bash(test*), Bash(ls*), Bash(find*), Bash(cat*), Bash(wt*), Bash(bash ~/.claude/skills/wt-start/apply-deps.sh*)
-disable-model-invocation: true
 ---
 
 # wt-start
